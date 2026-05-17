@@ -163,9 +163,21 @@ These datasets will be naturally imbalanced: most candidate locations are not th
 
 ### Model Input Format
 
-Each training example is a candidate-level multi-view record. The primary unit is `(task_instance, candidate_location)`. The model does not consume the whole project as one long sequence. Instead, each candidate is represented by bounded source-code windows, structured checker/fact records, task context text, optional oracle evidence, and optional agent-view text.
+Each training example is a candidate-level multi-view record. The primary unit is `(task_instance, candidate_location)`. The model does not consume the whole project as one long sequence. Instead, each candidate can be represented by source window sequences, protocol/API sequences, structured fact/path records, optional graph structure, task context text, oracle evidence, and optional agent-view JSONL data.
 
-Source windows are consumed as token/line sequences with candidate-span markers. CodeQL/checker facts are consumed as structured records and, when path information exists, as fact/path sequences or graph edges. Task context and agent views are consumed as short text sequences. This allows the model to support source-code-only mode, checker-grounded mode, and multi-view mode without changing the dataset unit.
+Source windows are not read directly from raw repository files by the model. A preprocessing step extracts a bounded file/function/line region, tokenizes it, adds line-position features, and marks the candidate span. The model consumes this prepared token/line sequence. Protocol/API event sequences capture ordered lifecycle or security-relevant events around a candidate, such as acquire, release, refcount update, publish, cancel work, or destroy. Structured fact/path records capture typed facts and relations, such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Optional graph structure is built from those structured facts, for example callgraph, dataflow, or object-flow neighborhoods around the candidate. Task context is consumed as short text. Oracle evidence and agent-view JSONL data are consumed as structured metadata plus short text fields. This allows the model to support source-code-only mode, checker-grounded mode, and multi-view mode without changing the dataset unit.
+
+### Protocol/API Event Extraction Tooling
+
+Protocol/API sequences are ordered, source-anchored events such as acquire, release, refcount increment/decrement, allocate, free, lock, unlock, publish, schedule work, cancel work, and destroy object. They are meant to expose what lifecycle or security-relevant operations occur around a candidate location. Structured fact/path records are a separate input view: they describe typed relationships such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Both views must be produced by approved parser-backed or checker-backed tools, not by grep-only API matching or a custom regex parser.
+
+The first implementation should use **CodeQL custom C/C++ queries** as the primary extraction tool. CodeQL is the best initial fit because it provides a C/C++ analysis library, source-level query results, local/global dataflow support, path-query support, and a natural way to connect extracted facts to checker-backed `PASS`, `FAIL`, or `UNKNOWN` labels. VulnSignal should emit protocol/API event records such as `api_event` and lifecycle-event sequences, and structured fact/path records such as `object_flow`, `call_edge`, `dataflow_edge`, `path_node`, and `rule_hit`.
+
+For Linux-specific protocol checks, **Coccinelle** can be used as a supplemental tool because the Linux kernel already supports `coccicheck`, semantic patches, and report-mode output with file/line/column locations. Coccinelle results may generate candidate locations or supporting evidence, but they are not final truth without a recorded rule, source anchor, and validation policy.
+
+**Joern/code property graphs** may be evaluated later for graph-heavy experiments because code property graphs combine syntax, control-flow, and data-flow in one graph representation. Joern should not replace CodeQL as the first fact backbone unless an experiment shows that CodeQL cannot extract the needed event/path facts. **Tree-sitter** may help with lightweight source navigation, but it should not be treated as semantic evidence because it primarily provides concrete syntax trees. **Clang LibTooling/AST Matchers** remains a fallback for compiler AST-level extraction when a CodeQL query is not expressive enough, but it is not required for the first pilot.
+
+Rejected extraction sources include grep-only matching, regex-only parser mimicry, unanchored LLM summaries, and manually invented protocol traces. If an event cannot be tied to a source file, function, line range, extraction tool, and extraction rule ID, it should not be used as checker-grounded data.
 
 ### Data Processing
 
@@ -175,7 +187,8 @@ Required derived files:
 - `task_instances.jsonl`: one investigation with source family, project, snapshot commit, build/test metadata, oracle/checker availability, and split policy.
 - `candidate_locations.jsonl`: existing file/function/line windows generated before ranking.
 - `source_windows.jsonl`: bounded source snippets and token windows for each candidate.
-- `codeql_facts.jsonl`: normalized fact/path records keyed by fact ID and source anchor.
+- `protocol_api_sequences.jsonl`: ordered lifecycle/API event sequences keyed by candidate, source anchor, extraction tool, and extraction rule ID.
+- `structured_facts_paths.jsonl`: normalized fact/path records such as object-flow links, call edges, dataflow edges, path nodes, and rule hits keyed by fact ID and source anchor.
 - `oracle_runs.jsonl`: executable evidence rows such as command, exit code, sanitizer/crash output, pre-patch result, post-patch result, and reproducibility status.
 - `agent_views.jsonl`: optional LLM-agent summaries, hypotheses, affected-object guesses, review questions, and test ideas.
 - `labels.jsonl`: candidate-level label value, label strength, label source, evidence references, limitations, and explicit `UNKNOWN`.
@@ -194,25 +207,29 @@ VulnSignal accepts imbalanced data. It should not manufacture a globally balance
 
 ### DL Model/Architecture
 
-The model does not generate a final vulnerability report. It reads each task's candidate code locations and available evidence, then scores which locations should be inspected first. It can combine multiple inputs, such as source-code windows, CodeQL/checker facts, crash or patch evidence, and optional LLM-agent summaries. In architecture terms, this is a non-generative multi-view candidate ranker.
+The model does not generate a final vulnerability report. It reads each task's candidate code locations and available evidence, then scores which locations should be inspected first. It can combine multiple inputs, such as source-code windows, protocol/API event sequences, structured fact/path records, crash or patch evidence, and optional LLM-agent summaries. In architecture terms, this is a non-generative multi-view candidate ranker.
 
 The model may use a neural source encoder, code language model, or language-model-assisted reranking. In this proposal, a neural source encoder means the learned part of the model that converts source code into numeric embeddings. Examples include a CodeBERT-style code language model, a transformer over code tokens and lines, a smaller token/line encoder, or a graph/code-structure encoder if AST, callgraph, or dataflow structure is added later. The boundary is not "no deep learning"; the boundary is that model output is not vulnerability truth.
 
 Input views:
 
-- source window tokens and candidate-span markers
-- CodeQL/checker fact/path records when available
-- task context such as crash/advisory/rule brief
-- optional agent views such as summaries and hypotheses
+- source window sequence: tokenized bounded source region with candidate-span markers
+- protocol/API sequences: ordered lifecycle/API events around the candidate
+- structured fact/path records: call edges, dataflow edges, object-flow links, path nodes, and rule hits
+- graph structure: optional callgraph, dataflow, or object-flow neighborhood derived from structured facts
+- task context text: crash summary, advisory text, checker question, rule brief, or benchmark description
+- oracle/agent-view JSONL data: oracle results, LLM-agent summaries, hypotheses, review questions, and test ideas
 
 Embedding design:
 
 Each input source has its own encoder that turns that input into numeric embeddings. The model then combines those embeddings with cross-attention or gated fusion.
 
 - source window encoder: code-token embeddings, line-position embeddings, candidate-span embeddings
-- fact/path encoder: fact-kind embeddings, predicate embeddings, object-ID embeddings, edge-type embeddings, path-position embeddings
-- context encoder: task brief, crash/advisory text, checker question
-- agent-view encoder: optional generated summaries and hypotheses
+- protocol/API sequence encoder: event-kind embeddings, API/function embeddings, object-role embeddings, event-order embeddings
+- structured fact/path encoder: fact-kind embeddings, predicate embeddings, object-ID embeddings, edge-type embeddings, path-position embeddings
+- graph encoder: optional node-type embeddings, edge-type embeddings, and neighborhood-position embeddings derived from structured facts
+- context encoder: text-token embeddings, source-family embeddings, rule-family embeddings, task-type embeddings
+- oracle/agent-view encoder: oracle-type embeddings, result-status embeddings, provenance embeddings, text-token embeddings for summaries and hypotheses
 
 Fusion:
 
