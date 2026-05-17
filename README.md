@@ -7,7 +7,7 @@
 [![Context](https://img.shields.io/badge/Context-8%20Lines-brightgreen)](#how-it-works)
 
 
-VulnSignal is a checker-grounded vulnerability candidate-ranking framework for C/C++ systems code. It ranks suspicious source-code locations using source context, CodeQL/checker facts, crash or patch evidence, and explicit uncertainty. It does not claim final vulnerability truth from model output alone.
+VulnSignal is a tool-grounded vulnerability candidate-ranking framework for C/C++ systems code. It ranks suspicious source-code locations using source context, CodeQL/checker facts, crash or patch evidence, and explicit uncertainty. It does not claim final vulnerability truth from model output alone.
 
 The initial vulnerability-family focus is object lifecycle, concurrency, and memory-safety bugs. The first pilot emphasizes Linux-style object lifetime and refcount patterns, including use-after-free, publish-after-free, missing acquire/release, cancel/flush-before-destroy, and related concurrency-sensitive lifecycle rules. The broader initial scope may add bounds checks, double-free, null/error-path cleanup, and parser/input-validation memory-safety families only after the evidence pipeline is validated.
 
