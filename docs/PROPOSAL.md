@@ -28,8 +28,8 @@ Most machine-learning vulnerability-detection projects train on function-level C
 
 1. locating relevant code inside a large project
 2. reasoning across call paths, object lifetimes, dataflow, and protocol rules
-3. forming a concrete vulnerability hypothesis
-4. identifying evidence that supports or weakens the hypothesis
+3. forming a concrete vulnerability claim
+4. identifying evidence that supports or weakens the claim
 5. suggesting a test, fuzz target, or mutation direction
 6. validating the claim through a dynamic oracle or trusted checker
 
@@ -53,7 +53,7 @@ It is trained to answer:
 Which existing source-code locations should be inspected first?
 What object or protocol is implicated?
 Which lifecycle/security rule may be violated?
-What evidence supports the hypothesis?
+What evidence supports the candidate explanation?
 What test or mutation direction should be tried?
 What remains UNKNOWN?
 ```
@@ -89,6 +89,8 @@ original dataset record
 
 This pipeline is used after training on a new source snapshot. It automatically proposes candidate locations, extracts the needed source context and checker facts, ranks the candidates, and produces a small review packet for humans or downstream validation.
 
+The default inference mode runs all supported vulnerability families within the configured VulnSignal scope and reports both per-family and merged rankings. Explicit family selection is still supported for cost control, tool availability, focused patch review, controlled evaluation, validation-budget management, and excluding immature families from reported results.
+
 ```text
 new source snapshot
   -> candidate generator
@@ -101,7 +103,7 @@ new source snapshot
 
 At inference time, labels, fixed source, patch truth, known root cause, and oracle results are hidden unless the runtime pipeline executes the checker or oracle.
 
-We also keep a source-code-only mode. This mode can be integrated into LLM-agent workflows as a hypothesis engine that suggests suspicious locations, likely rules, and review questions. However, source-code-only suggestions are not validation; checker/oracle evidence is still required for `PASS`, `FAIL`, or `UNKNOWN` labels.
+We also keep a source-code-only mode. This mode can be integrated into LLM-agent workflows as a triage assistant that suggests suspicious locations, likely rules, and review questions. Downstream investigators may use VulnSignal's ranked candidates and evidence to construct hypotheses for further investigation, but hypothesis construction is outside the core ranker output. Source-code-only suggestions are not validation; checker/oracle evidence is still required for `PASS`, `FAIL`, or `UNKNOWN` labels.
 
 ## Methodology
 
@@ -242,7 +244,7 @@ Prediction heads:
 The model uses a shared fused representation for each candidate, then applies separate prediction heads for different outputs. The heads are not independent models: the ranking head identifies which locations matter most, while the rule, object, evidence, guidance, and uncertainty heads add explanations and validation cues for those ranked locations.
 
 - location ranking score
-- rule family / protocol hypothesis
+- rule family / protocol candidate
 - affected object
 - evidence fact selection
 - test/fuzz/mutation guidance
@@ -330,6 +332,7 @@ Testing must distinguish inference inputs from evaluation-only truth.
 Inference inputs:
 
 - source snapshot for target project/version
+- configured vulnerability-family set; by default, all supported families within the VulnSignal scope
 - task brief, rule family, crash/advisory text, or checker question when available
 - generated candidate-location rows with source windows
 - CodeQL/checker fact rows if the evaluated model was trained to use them
@@ -438,6 +441,12 @@ Risks and mitigations:
 - Report evidence selection and UNKNOWN calibration.
 - Report review-budget results.
 - Document failure cases and source-family limitations.
+
+### Future Work - Exploit-primitive perspective annotation
+
+After the core suspicious-location ranker is validated, VulnSignal may add an optional exploit-primitive perspective pass over top-ranked candidates. This pass would annotate candidates with possible impact-oriented perspectives, such as page-cache write/corruption, arbitrary write, controlled read/write, attacker-controlled use-after-free reuse, kernel memory disclosure, privilege-boundary crossing, or sandbox/container escape relevance.
+
+This future pass is not exploit-chain construction and not proof of exploitability. It would be used only to prioritize validation by showing which ranked candidates may connect to higher-impact primitives. Checker/oracle evidence and human audit would still be required before making any vulnerability or exploitability claim.
 
 ## Resources
 
