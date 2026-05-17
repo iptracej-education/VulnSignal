@@ -1,8 +1,8 @@
-# Proposal: VulnSignal - Checker-Grounded Candidate Ranking for Vulnerability Research
+# Proposal: VulnSignal - Tool-Grounded Candidate Ranking for Vulnerability Research
 
 ## Introduction
 
-VulnSignal proposes a checker-grounded dataset and deep-learning pipeline for vulnerability research. The project does not train a generic vulnerable/non-vulnerable function classifier. Instead, it learns to rank suspicious source-code locations inside a real vulnerability-research task, predict likely protocol or security-rule hypotheses, select supporting evidence, and report uncertainty when proof is incomplete. Checker-grounded means labels and evidence come from CodeQL, rule checkers, crashes, reproducers, fuzz tests, or patch-confirmed behavior.
+VulnSignal proposes a tool-grounded dataset and deep-learning pipeline for vulnerability research. The project does not train a generic vulnerable/non-vulnerable function classifier. Instead, it learns to rank suspicious source-code locations inside a real vulnerability-research task, predict likely protocol or security-rule hypotheses, select supporting evidence, and report uncertainty when proof is incomplete. Tool-grounded means labels and evidence come from CodeQL, rule checkers, crashes, reproducers, fuzz tests, or patch-confirmed behavior.
 
 The initial vulnerability-family focus is C/C++ object lifecycle, concurrency, and memory-safety bugs. The first pilot emphasizes Linux-style object lifetime and refcount patterns, including use-after-free, publish-after-free, missing acquire/release, cancel/flush-before-destroy, and related concurrency-sensitive lifecycle rules. After the first pilot validates the dataset and evidence pipeline, the initial expansion may add bounds checks, double-free, null/error-path cleanup, and parser/input-validation memory-safety families.
 
@@ -93,7 +93,7 @@ This pipeline is used after training on a new source snapshot. It automatically 
 new source snapshot
   -> candidate generator
   -> source window extractor
-  -> CodeQL/checker fact builder, when using checker-grounded mode
+  -> CodeQL/checker fact builder, when using tool-grounded mode
   -> optional agent-view generator
   -> candidate ranker
   -> top-k review packet
@@ -165,7 +165,7 @@ These datasets will be naturally imbalanced: most candidate locations are not th
 
 Each training example is a candidate-level multi-view record. The primary unit is `(task_instance, candidate_location)`. The model does not consume the whole project as one long sequence. Instead, each candidate can be represented by source window sequences, protocol/API sequences, structured fact/path records, optional graph structure, task context text, oracle evidence, and optional agent-view JSONL data.
 
-Source windows are not read directly from raw repository files by the model. A preprocessing step extracts a bounded file/function/line region, tokenizes it, adds line-position features, and marks the candidate span. The model consumes this prepared token/line sequence. Protocol/API event sequences capture ordered lifecycle or security-relevant events around a candidate, such as acquire, release, refcount update, publish, cancel work, or destroy. Structured fact/path records capture typed facts and relations, such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Optional graph structure is built from those structured facts, for example callgraph, dataflow, or object-flow neighborhoods around the candidate. Task context is consumed as short text. Oracle evidence and agent-view JSONL data are consumed as structured metadata plus short text fields. This allows the model to support source-code-only mode, checker-grounded mode, and multi-view mode without changing the dataset unit.
+Source windows are not read directly from raw repository files by the model. A preprocessing step extracts a bounded file/function/line region, tokenizes it, adds line-position features, and marks the candidate span. The model consumes this prepared token/line sequence. Protocol/API event sequences capture ordered lifecycle or security-relevant events around a candidate, such as acquire, release, refcount update, publish, cancel work, or destroy. Structured fact/path records capture typed facts and relations, such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Optional graph structure is built from those structured facts, for example callgraph, dataflow, or object-flow neighborhoods around the candidate. Task context is consumed as short text. Oracle evidence and agent-view JSONL data are consumed as structured metadata plus short text fields. This allows the model to support source-code-only mode, tool-grounded mode, and multi-view mode without changing the dataset unit.
 
 ### Protocol/API Event Extraction Tooling
 
@@ -177,7 +177,7 @@ For Linux-specific protocol checks, **Coccinelle** can be used as a supplemental
 
 **Joern/code property graphs** may be evaluated later for graph-heavy experiments because code property graphs combine syntax, control-flow, and data-flow in one graph representation. Joern should not replace CodeQL as the first fact backbone unless an experiment shows that CodeQL cannot extract the needed event/path facts. **Tree-sitter** may help with lightweight source navigation, but it should not be treated as semantic evidence because it primarily provides concrete syntax trees. **Clang LibTooling/AST Matchers** remains a fallback for compiler AST-level extraction when a CodeQL query is not expressive enough, but it is not required for the first pilot.
 
-Rejected extraction sources include grep-only matching, regex-only parser mimicry, unanchored LLM summaries, and manually invented protocol traces. If an event cannot be tied to a source file, function, line range, extraction tool, and extraction rule ID, it should not be used as checker-grounded data.
+Rejected extraction sources include grep-only matching, regex-only parser mimicry, unanchored LLM summaries, and manually invented protocol traces. If an event cannot be tied to a source file, function, line range, extraction tool, and extraction rule ID, it should not be used as tool-grounded data.
 
 ### Data Processing
 
@@ -235,7 +235,7 @@ Fusion:
 
 - cross-attention between input views, where source code, checker facts, task context, and optional agent summaries can attend to each other
 - gated fusion, where the model learns how much weight to give each input view, especially when some evidence is missing or weaker
-- missing-view masks so source-only ablations are allowed without pretending to be checker-grounded
+- missing-view masks so source-only ablations are allowed without pretending to be tool-grounded
 
 Prediction heads:
 
@@ -343,7 +343,7 @@ Hidden evaluation-only fields:
 - oracle result and post-patch behavior
 - label-source fields that reveal the answer
 
-Source-only mode is allowed as a baseline or assistant track, but must be reported as `source_only`, not as the primary checker-grounded VulnSignal result.
+Source-only mode is allowed as a baseline or assistant track, but must be reported as `source_only`, not as the primary tool-grounded VulnSignal result.
 
 ## Evaluation
 
@@ -488,7 +488,7 @@ The primary unit is `(task_instance, candidate_location)`. Each task has many ca
 
 ## What is your overall goal with this project?
 
-The overall goal is to build a credible checker-grounded candidate-ranking framework that helps vulnerability researchers inspect the right source locations first, while avoiding vague ML vulnerability-detection claims.
+The overall goal is to build a credible tool-grounded candidate-ranking framework that helps vulnerability researchers inspect the right source locations first, while avoiding vague ML vulnerability-detection claims.
 
 ## Anything else you want to note about your project?
 
