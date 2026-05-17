@@ -161,6 +161,12 @@ The 300-task target is not credible if interpreted as 300 strong Linux object-li
 
 These datasets will be naturally imbalanced: most candidate locations are not the confirmed root cause, and many will remain `UNKNOWN`. Later training and evaluation sections mitigate this with task-level ranking losses, hard-negative sampling, explicit `UNKNOWN` calibration, and top-k review metrics instead of global balanced binary classification.
 
+### Model Input Format
+
+Each training example is a candidate-level multi-view record. The primary unit is `(task_instance, candidate_location)`. The model does not consume the whole project as one long sequence. Instead, each candidate is represented by bounded source-code windows, structured checker/fact records, task context text, optional oracle evidence, and optional agent-view text.
+
+Source windows are consumed as token/line sequences with candidate-span markers. CodeQL/checker facts are consumed as structured records and, when path information exists, as fact/path sequences or graph edges. Task context and agent views are consumed as short text sequences. This allows the model to support source-code-only mode, checker-grounded mode, and multi-view mode without changing the dataset unit.
+
 ### Data Processing
 
 Required derived files:
