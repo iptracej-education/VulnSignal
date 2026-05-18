@@ -2,7 +2,7 @@
 
 ## Introduction
 
-VulnSignal proposes a tool-grounded dataset and deep-learning pipeline for vulnerability research. The project does not train a generic vulnerable/non-vulnerable function classifier. Instead, it learns to rank suspicious source-code locations inside a real vulnerability-research task, predict likely protocol or security-rule hypotheses, select supporting evidence, and report uncertainty when proof is incomplete. Tool-grounded means labels and evidence come from CodeQL, rule checkers, crashes, reproducers, fuzz tests, or patch-confirmed behavior.
+VulnSignal proposes a tool-grounded dataset and deep-learning pipeline for vulnerability research. The project does not train a generic vulnerable/non-vulnerable function classifier. Instead, it learns to rank suspicious source-code locations inside a real vulnerability-research task, predict likely protocol or security-rule candidates, select supporting evidence, and report uncertainty when proof is incomplete. Tool-grounded means labels and evidence come from CodeQL, rule checkers, crashes, reproducers, fuzz tests, or patch-confirmed behavior.
 
 The initial vulnerability-family focus is C/C++ object lifecycle, concurrency, and memory-safety bugs. The first pilot emphasizes Linux-style object lifetime and refcount patterns, including use-after-free, publish-after-free, missing acquire/release, cancel/flush-before-destroy, and related concurrency-sensitive lifecycle rules. After the first pilot validates the dataset and evidence pipeline, the initial expansion may add bounds checks, double-free, null/error-path cleanup, and parser/input-validation memory-safety families.
 
@@ -14,7 +14,7 @@ input artifacts:
 
 model outputs:
   ranked file/function/line windows
-  likely rule, affected object, supporting evidence, and test guidance
+  likely rule, affected object, supporting evidence, and validation guidance
 
 validation outputs:
   checker/oracle-backed PASS, FAIL, or UNKNOWN
@@ -30,7 +30,7 @@ Most machine-learning vulnerability-detection projects train on function-level C
 2. reasoning across call paths, object lifetimes, dataflow, and protocol rules
 3. forming a concrete vulnerability claim
 4. identifying evidence that supports or weakens the claim
-5. suggesting a test, fuzz target, or mutation direction
+5. suggesting evidence-derived validation guidance
 6. validating the claim through a dynamic oracle or trusted checker
 
 Recent agentic vulnerability-research systems and benchmarks, such as MDASH-style workflows and CyberGym-style task environments, are not simple classifiers. They use task setup, source context, semantic grounding, validation, proof, and feedback. VulnSignal adopts that architectural lesson but narrows the scope to one trainable operation: candidate ranking.
@@ -54,14 +54,14 @@ Which existing source-code locations should be inspected first?
 What object or protocol is implicated?
 Which lifecycle/security rule may be violated?
 What evidence supports the candidate explanation?
-What test or mutation direction should be tried?
+What validation evidence should be tried next?
 What remains UNKNOWN?
 ```
 
 Primary contributions:
 
 1. A research direction that treats ML for vulnerability research as high-confidence candidate proposal, not generic function-level vulnerability classification.
-2. A system design that combines source code, checker facts, runtime evidence, and patch evidence to rank suspicious locations for review.
+2. A system design that uses source code and tool-generated facts for ranking, while keeping runtime evidence and patch evidence as label, validation, and evaluation artifacts.
 3. A dataset design that preserves real project context, source versions, candidate locations, evidence provenance, and uncertainty.
 4. A model target focused on proposing where to inspect, what rule may be violated, what object may be affected, and what evidence should be checked next.
 5. A validation policy that separates model suggestions from vulnerability truth, requiring checkers, crashes, reproducers, fuzz tests, patch-confirmed behavior, or explicit `UNKNOWN`.
@@ -81,7 +81,9 @@ original dataset record
   -> task_instances.jsonl
   -> candidate_locations.jsonl
   -> source_windows.jsonl
-  -> codeql_facts.jsonl / oracle_runs.jsonl / agent_views.jsonl
+  -> protocol_api_sequences.jsonl / structured_facts_paths.jsonl
+  -> oracle_runs.jsonl / oracle_candidate_links.jsonl
+  -> validation_guidance_labels.jsonl / agent_views.jsonl
   -> labels.jsonl
 ```
 
@@ -90,6 +92,8 @@ original dataset record
 This pipeline is used after training on a new source snapshot. It automatically proposes candidate locations, extracts the needed source context and checker facts, ranks the candidates, and produces a small review packet for humans or downstream validation.
 
 The default inference mode runs all supported vulnerability families within the configured VulnSignal scope and reports both per-family and merged rankings. Explicit family selection is still supported for cost control, tool availability, focused patch review, controlled evaluation, validation-budget management, and excluding immature families from reported results.
+
+Each top-k review packet should include a ranking rationale. The rationale must link back to selected input evidence, such as source-window signals, protocol/API events, structured fact/path records, missing or weak evidence, and suggested validation actions. It is evidence-linked ranking support, not a free-form claim that the candidate is vulnerable.
 
 ```text
 new source snapshot
@@ -165,9 +169,9 @@ These datasets will be naturally imbalanced: most candidate locations are not th
 
 ### Model Input Format
 
-Each training example is a candidate-level multi-view record. The primary unit is `(task_instance, candidate_location)`. The model does not consume the whole project as one long sequence. Instead, each candidate can be represented by source window sequences, protocol/API sequences, structured fact/path records, optional graph structure, task context text, oracle evidence, and optional agent-view JSONL data.
+Each training example is a candidate-level multi-view record. The primary unit is `(task_instance, candidate_location)`. The model does not consume the whole project as one long sequence. Instead, each candidate can be represented by source window sequences, protocol/API sequences, structured fact/path records, optional graph structure, task context text, and optional agent-view JSONL data. Oracle, fuzz, reproducer, and patch evidence are stored as hidden supervision and evaluation evidence unless the same kind of evidence is generated at inference time.
 
-Source windows are not read directly from raw repository files by the model. A preprocessing step extracts a bounded file/function/line region, tokenizes it, adds line-position features, and marks the candidate span. The model consumes this prepared token/line sequence. Protocol/API event sequences capture ordered lifecycle or security-relevant events around a candidate, such as acquire, release, refcount update, publish, cancel work, or destroy. Structured fact/path records capture typed facts and relations, such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Optional graph structure is built from those structured facts, for example callgraph, dataflow, or object-flow neighborhoods around the candidate. Task context is consumed as short text. Oracle evidence and agent-view JSONL data are consumed as structured metadata plus short text fields. This allows the model to support source-code-only mode, tool-grounded mode, and multi-view mode without changing the dataset unit.
+Source windows are not read directly from raw repository files by the model. A preprocessing step extracts a bounded file/function/line region, tokenizes it, adds line-position features, and marks the candidate span. The model consumes this prepared token/line sequence. Protocol/API event sequences capture ordered lifecycle or security-relevant events around a candidate, such as acquire, release, refcount update, publish, cancel work, or destroy. Structured fact/path records capture typed facts and relations, such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Optional graph structure is built from those structured facts, for example callgraph, dataflow, or object-flow neighborhoods around the candidate. Task context is consumed as short text. Optional agent-view JSONL data may be consumed only when the same agent-view generator is available during inference and does not include hidden label truth. This allows the model to support source-code-only mode, tool-grounded mode, and multi-view mode without changing the dataset unit.
 
 ### Protocol/API Event Extraction Tooling
 
@@ -192,7 +196,9 @@ Required derived files:
 - `protocol_api_sequences.jsonl`: ordered lifecycle/API event sequences keyed by candidate, source anchor, extraction tool, and extraction rule ID.
 - `structured_facts_paths.jsonl`: normalized fact/path records such as object-flow links, call edges, dataflow edges, path nodes, and rule hits keyed by fact ID and source anchor.
 - `oracle_runs.jsonl`: executable evidence rows such as command, exit code, sanitizer/crash output, pre-patch result, post-patch result, and reproducibility status.
-- `agent_views.jsonl`: optional LLM-agent summaries, hypotheses, affected-object guesses, review questions, and test ideas.
+- `oracle_candidate_links.jsonl`: links between oracle artifacts and candidate locations, including link strength, link method, evidence references, and limitations.
+- `validation_guidance_labels.jsonl`: optional hidden supervision for guidance quality, derived from historical crashes, reproducers, fuzz targets, checker runs, or patch-confirmed before/after behavior.
+- `agent_views.jsonl`: optional LLM-agent summaries, affected-object guesses, review questions, and test ideas that are generated by the same pipeline used at inference.
 - `labels.jsonl`: candidate-level label value, label strength, label source, evidence references, limitations, and explicit `UNKNOWN`.
 
 Candidate rows and source windows should be generated by the pipeline, not hand-created by humans. Humans audit the generation quality, leakage risk, rule definitions, and ambiguous evidence.
@@ -207,9 +213,46 @@ Splits:
 
 VulnSignal accepts imbalanced data. It should not manufacture a globally balanced vulnerable/non-vulnerable dataset. Negatives come from same-task hard negatives, checker PASS rows, non-root-cause candidates, callgraph/dataflow neighbors, and UNKNOWN rows.
 
+### Oracle, Agent View, and Validation Guidance Policy
+
+VulnSignal must keep three artifact roles separate:
+
+- model-visible inputs: source windows, protocol/API sequences, structured fact/path records, optional graph records, cleaned task context, and optional agent views generated by the same inference pipeline
+- hidden supervision and evaluation evidence: root-cause labels, oracle outcomes, reproducer results, fuzz inputs, pre/post patch behavior, fixed source, and oracle-candidate links
+- output artifacts: ranked review packets, selected evidence, uncertainty, and validation guidance for top candidates
+
+Historical fuzz, crash, and reproducer artifacts are valuable, but they should usually train or evaluate the model instead of being shown to the model as ordinary input. If a public OSS-Fuzz, ClusterFuzz, Magma-style, or benchmark case includes a crashing input, stack trace, reproducer command, fuzz target, or fixed-version result, VulnSignal records it in `oracle_runs.jsonl` and links it to candidates through `oracle_candidate_links.jsonl`. Those links can supervise candidate ranking, evidence selection, and validation-guidance quality. They are hidden during normal inference because a new target project will not already have the answer.
+
+Validation guidance is not generic fuzzing advice. It is a short, evidence-derived packet that explains what to try next for a ranked candidate and why. The first implementation should generate this guidance from rule-pack templates and selected evidence, with an optional learned head only when enough historical oracle links exist.
+
+Each validation-guidance packet should include:
+
+- `guidance_status`: `actionable`, `weak`, or `abstain`
+- `evidence_basis`: selected source lines, protocol/API events, fact/path IDs, graph edges, or task-context fields that justify the guidance
+- `missing_evidence`: facts or oracle results that would be needed before making a vulnerability claim
+- `validation_goal`: the concrete condition to check, such as use-after-free reachability, missing refcount acquire, missing cancel/flush-before-destroy, double-free path, bounds failure, or null/error-path cleanup failure
+- `entrypoint_or_target_hint`: candidate fuzz target, reproducer entrypoint, syscall/API path, parser input path, or checker query to try when this is known from the task context or extracted facts
+- `state_sequence_to_exercise`: source-anchored lifecycle/API sequence that should be exercised, such as allocate -> publish -> release/free -> callback/use
+- `instrumentation_hint`: sanitizer, checker, trace, or assertion direction, such as ASan/KASAN, KCSAN, UBSan, CodeQL query, Coccinelle rule, or project-specific test hook
+- `fuzzer_target_export`: optional file/function/line or basic-block target set that an external fuzzer can use in its own fitness function
+- `safety_and_scope`: sandbox/VM requirement, destructive side-effect warning when applicable, and a statement that the guidance is not proof of vulnerability
+- `abstention_reason`: why guidance is not reliable when the packet is `weak` or `abstain`
+
+VulnSignal should not fuzz every candidate. The ranker first reduces thousands of candidates to a top-k review set, then the guidance packet helps downstream checkers, fuzzers, or human reviewers choose focused validation actions. For fuzzing, the most defensible integration is target export: VulnSignal provides suspicious source locations and evidence context, and an external fuzzer uses those locations inside its own fitness function. For example, the fuzzer may prioritize inputs that increase normal coverage, reach a ranked function or basic block, reduce distance to a ranked candidate, or trigger a sanitizer/checker signal near the candidate. The fuzzer still owns testcase generation, mutation, coverage measurement, and crash detection. VulnSignal does not claim that its guidance proves a vulnerability or learns the fuzzer's mutation policy.
+
+```text
+external_fuzzer_fitness(input)
+  = coverage_novelty
+  + ranked_target_reach_bonus
+  + distance_to_ranked_candidate_bonus
+  + sanitizer_or_checker_signal_bonus
+```
+
+This fitness-function use is optional downstream validation support, not the core training objective. LLM agents may summarize evidence or draft a harness sketch, but LLM output cannot create labels, oracle truth, or vulnerability proof.
+
 ### DL Model/Architecture
 
-The model does not generate a final vulnerability report. It reads each task's candidate code locations and available evidence, then scores which locations should be inspected first. It can combine multiple inputs, such as source-code windows, protocol/API event sequences, structured fact/path records, crash or patch evidence, and optional LLM-agent summaries. In architecture terms, this is a non-generative multi-view candidate ranker.
+The model does not generate a final vulnerability report. It reads each task's candidate code locations and model-visible evidence, then scores which locations should be inspected first. It can combine multiple inputs, such as source-code windows, protocol/API event sequences, structured fact/path records, cleaned task context, optional graph records, and optional LLM-agent summaries. In architecture terms, this is a non-generative multi-view candidate ranker.
 
 The model may use a neural source encoder, code language model, or language-model-assisted reranking. In this proposal, a neural source encoder means the learned part of the model that converts source code into numeric embeddings. Examples include a CodeBERT-style code language model, a transformer over code tokens and lines, a smaller token/line encoder, or a graph/code-structure encoder if AST, callgraph, or dataflow structure is added later. The boundary is not "no deep learning"; the boundary is that model output is not vulnerability truth.
 
@@ -220,7 +263,7 @@ Input views:
 - structured fact/path records: call edges, dataflow edges, object-flow links, path nodes, and rule hits
 - graph structure: optional callgraph, dataflow, or object-flow neighborhood derived from structured facts
 - task context text: crash summary, advisory text, checker question, rule brief, or benchmark description
-- oracle/agent-view JSONL data: oracle results, LLM-agent summaries, hypotheses, review questions, and test ideas
+- optional agent-view JSONL data: LLM-agent summaries, affected-object guesses, review questions, and test ideas generated without hidden oracle or patch truth
 
 Embedding design:
 
@@ -231,9 +274,11 @@ Each input source has its own encoder that turns that input into numeric embeddi
 - structured fact/path encoder: fact-kind embeddings, predicate embeddings, object-ID embeddings, edge-type embeddings, path-position embeddings
 - graph encoder: optional node-type embeddings, edge-type embeddings, and neighborhood-position embeddings derived from structured facts
 - context encoder: text-token embeddings, source-family embeddings, rule-family embeddings, task-type embeddings
-- oracle/agent-view encoder: oracle-type embeddings, result-status embeddings, provenance embeddings, text-token embeddings for summaries and hypotheses
+- optional agent-view encoder: provenance embeddings and text-token embeddings for summaries, affected-object guesses, review questions, and test ideas
 
 Fusion:
+
+Cross-attention is used because each candidate has multiple input views that refer to the same code location from different perspectives. The model must learn how source tokens, protocol/API events, structured facts, graph neighborhoods, and task context align with each other. This helps the ranker distinguish normal API/event sequences from suspicious combinations of source code and tool-derived evidence.
 
 - cross-attention between input views, where source code, checker facts, task context, and optional agent summaries can attend to each other
 - gated fusion, where the model learns how much weight to give each input view, especially when some evidence is missing or weaker
@@ -247,7 +292,8 @@ The model uses a shared fused representation for each candidate, then applies se
 - rule family / protocol candidate
 - affected object
 - evidence fact selection
-- test/fuzz/mutation guidance
+- ranking rationale over selected model-visible source, protocol/API, fact/path, graph, context, and agent-view inputs
+- validation-guidance status and action category
 - confidence / UNKNOWN
 
 Loss function:
@@ -260,12 +306,13 @@ L_{\text{total}}
 + \lambda_{\text{rule}} L_{\text{rule}}
 + \lambda_{\text{object}} L_{\text{object}}
 + \lambda_{\text{evidence}} L_{\text{evidence}}
++ \lambda_{\text{guidance}} L_{\text{guidance}}
 + \lambda_{\text{unknown}} L_{\text{unknown}}
 $$
 
 The $\lambda$ values are tunable scalar weights that control how much each auxiliary loss contributes relative to candidate ranking.
 
-`L_rank` trains candidate ordering within the same task. `L_rule` trains likely rule or protocol prediction. `L_object` trains affected-object prediction. `L_evidence` trains supporting-fact selection. `L_unknown` trains confidence calibration and abstention when evidence is incomplete.
+`L_rank` trains candidate ordering within the same task. `L_rule` trains likely rule or protocol prediction. `L_object` trains affected-object prediction. `L_evidence` trains supporting-fact selection. `L_guidance` trains validation-guidance status or action-category prediction when historical oracle links provide supervision. `L_unknown` trains confidence calibration and abstention when evidence is incomplete.
 
 ### Training
 
@@ -314,6 +361,7 @@ Auxiliary losses:
 
 - rule/object classification cross-entropy trains the rule-family head and affected-object head when the dataset identifies the violated rule or implicated object.
 - evidence fact selection binary cross-entropy trains the evidence head to select supporting CodeQL/checker facts, path nodes, crash frames, or patch-linked facts from the candidate's evidence set.
+- validation-guidance classification or multilabel binary cross-entropy trains the guidance head only when historical oracle links identify a useful validation target, entrypoint, sanitizer/checker direction, or abstention decision.
 - UNKNOWN/confidence calibration or abstention-style objective trains the model to lower confidence when evidence is incomplete, conflicting, or outside the checker/oracle coverage.
 
 Training implementation can use PyTorch. The first implementation should prioritize:
@@ -343,7 +391,8 @@ Hidden evaluation-only fields:
 - ground-truth labels
 - root-cause location
 - patch diff and fixed source
-- oracle result and post-patch behavior
+- oracle result, fuzz/reproducer result, and post-patch behavior
+- oracle-candidate links and validation-guidance labels
 - label-source fields that reveal the answer
 
 Source-only mode is allowed as a baseline or assistant track, but must be reported as `source_only`, not as the primary tool-grounded VulnSignal result.
@@ -357,6 +406,7 @@ Primary metrics:
 - nDCG over label strength and candidate relevance
 - evidence fact precision/recall when fact-level evidence is available
 - rule-family and affected-object accuracy for validated labels
+- validation-guidance quality when historical oracle links provide evaluation targets
 - UNKNOWN calibration and abstention quality
 - reviewer-effort reduction: evidence packets inspected before finding validated candidates
 
@@ -376,7 +426,8 @@ Evaluation must report results by source family, rule family, project split, lab
 Risks and mitigations:
 
 - **Weak labels masquerading as truth:** patch/advisory-only rows remain weak or UNKNOWN unless upgraded by checker/oracle evidence.
-- **Dataset leakage:** fixed source, patch labels, oracle results, and label-source metadata are excluded from inference features.
+- **Dataset leakage:** fixed source, patch labels, oracle results, fuzz/reproducer outcomes, oracle-candidate links, validation-guidance labels, and label-source metadata are excluded from inference features.
+- **Generic fuzzing advice:** guidance must be derived from selected evidence and explicit missing evidence; otherwise the packet should abstain.
 - **Overclaiming source-only LLM output:** language models may assist ranking and explanation, but cannot create final truth.
 - **Unmanageable human review:** humans audit top-k packets and stratified samples, not all 20,000+ candidate rows.
 - **Insufficient object-lifetime scale:** object-lifetime/refcount is a pilot family; a 300-task dataset requires broader C/C++ memory-safety families.
@@ -390,7 +441,7 @@ Risks and mitigations:
 2. Detailed architecture PNG: `diagrams/vulnsignal_detailed_architecture.png`.
 3. Compact visual deck: `docs/slides/vulnsignal_compact_visual_deck.html`.
 4. Detailed dataset deck: `docs/slides/vulnsignal_dataset_development.html`.
-5. Dataset schema definitions for task instances, candidates, source windows, facts, oracle runs, labels, and agent views.
+5. Dataset schema definitions for task instances, candidates, source windows, facts, oracle runs, oracle-candidate links, validation-guidance labels, labels, and agent views.
 6. Dataset-construction pipeline prototype for the object-lifetime pilot.
 7. Inference evidence pipeline prototype for new source snapshots.
 8. Baseline rankers: random, source-only, proximity, checker-only.
@@ -420,7 +471,7 @@ Risks and mitigations:
 - Build source-window extractor.
 - Integrate CodeQL/checker fact generation when available.
 - Add optional agent-view generation.
-- Emit top-k review packets.
+- Emit top-k review packets with selected evidence, uncertainty, and validation guidance.
 
 ### Phase 3 - Model baselines
 
