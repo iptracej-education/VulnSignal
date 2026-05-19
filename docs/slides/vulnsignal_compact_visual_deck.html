@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VulnSignal Compact Visual Deck</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #5f6b7a;
+      --line: #c9d3df;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --blue: #1f6feb;
+      --blue-soft: #e6f0ff;
+      --green: #1a7f37;
+      --green-soft: #e6f4ea;
+      --amber: #9a5b00;
+      --amber-soft: #fff2d8;
+      --red: #b42318;
+      --red-soft: #ffe8e4;
+      --purple: #6f42c1;
+      --purple-soft: #efe7fb;
+      --dark: #17202a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      display: grid;
+      gap: 30px;
+      padding: 30px;
+    }
+
+    .slide {
+      width: min(1280px, calc(100vw - 60px));
+      aspect-ratio: 16 / 9;
+      margin: 0 auto;
+      padding: 42px 50px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 18px 44px rgba(23, 32, 42, 0.10);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 22px;
+      page-break-after: always;
+      overflow: hidden;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 24px;
+      border-bottom: 2px solid #edf1f5;
+      padding-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.08;
+      letter-spacing: 0;
+      max-width: 940px;
+    }
+
+    .kicker {
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    .tag {
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .canvas {
+      min-height: 0;
+      display: grid;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .two-col { grid-template-columns: 1.08fr 0.92fr; }
+    .three-col { grid-template-columns: repeat(3, 1fr); }
+
+    .card {
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 16px;
+      min-height: 0;
+    }
+
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 19px;
+      line-height: 1.14;
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.36;
+    }
+
+    .card p { margin: 0; }
+    .card ul { margin: 0; padding-left: 18px; }
+
+    .good { border-color: #85c892; background: var(--green-soft); }
+    .warn { border-color: #e0b35e; background: var(--amber-soft); }
+    .bad { border-color: #e89a92; background: var(--red-soft); }
+    .purple { border-color: #b79be3; background: var(--purple-soft); }
+
+    .note {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: #f1f6ff;
+      color: #26476d;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .note span:last-child {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid #edf1f5;
+      padding-top: 13px;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+    }
+
+    svg text {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      fill: var(--ink);
+    }
+
+    .muted { fill: var(--muted); }
+    .white { fill: #ffffff; }
+    .small { font-size: 12px; font-weight: 700; }
+    .label { font-size: 15px; font-weight: 900; }
+    .title { font-size: 18px; font-weight: 900; }
+
+    @media print {
+      body { background: #ffffff; }
+      main { padding: 0; gap: 0; }
+      .slide {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="slide" aria-label="VulnSignal overview graphic">
+      <header>
+        <div>
+          <div class="kicker">VulnSignal In One Picture</div>
+          <h1>Rank source locations with generated evidence; validate trust with checkers or oracles</h1>
+        </div>
+        <div class="tag">1 / 5</div>
+      </header>
+
+      <div class="canvas two-col">
+        <svg viewBox="0 0 620 420" role="img" aria-label="VulnSignal source to evidence to ranking to validation flow">
+          <defs>
+            <marker id="arrow1" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#1f6feb"></path>
+            </marker>
+          </defs>
+          <rect x="24" y="38" width="150" height="64" rx="8" fill="#e6f0ff" stroke="#1f6feb" stroke-width="2"></rect>
+          <text x="99" y="66" text-anchor="middle" class="label">Source Snapshot</text>
+          <text x="99" y="86" text-anchor="middle" class="small muted">repo + commit + task</text>
+
+          <rect x="236" y="38" width="150" height="64" rx="8" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"></rect>
+          <text x="311" y="65" text-anchor="middle" class="label">Evidence Pipeline</text>
+          <text x="311" y="86" text-anchor="middle" class="small muted">windows + facts + agents</text>
+
+          <rect x="448" y="38" width="150" height="64" rx="8" fill="#fff2d8" stroke="#9a5b00" stroke-width="2"></rect>
+          <text x="523" y="65" text-anchor="middle" class="label">Candidate Ranker</text>
+          <text x="523" y="86" text-anchor="middle" class="small muted">top-k review queue</text>
+
+          <path d="M174 70 H236" stroke="#1f6feb" stroke-width="3" marker-end="url(#arrow1)"></path>
+          <path d="M386 70 H448" stroke="#1f6feb" stroke-width="3" marker-end="url(#arrow1)"></path>
+
+          <rect x="78" y="168" width="464" height="130" rx="10" fill="#fbfcfe" stroke="#c9d3df" stroke-width="2"></rect>
+          <text x="310" y="198" text-anchor="middle" class="title">Trust Layer</text>
+          <circle cx="166" cy="242" r="38" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"></circle>
+          <text x="166" y="239" text-anchor="middle" class="label">Checker</text>
+          <text x="166" y="257" text-anchor="middle" class="small muted">PASS/FAIL/UNKNOWN</text>
+          <circle cx="310" cy="242" r="38" fill="#e6f0ff" stroke="#1f6feb" stroke-width="2"></circle>
+          <text x="310" y="239" text-anchor="middle" class="label">Oracle</text>
+          <text x="310" y="257" text-anchor="middle" class="small muted">repro/fuzz/test</text>
+          <circle cx="454" cy="242" r="38" fill="#ffe8e4" stroke="#b42318" stroke-width="2"></circle>
+          <text x="454" y="239" text-anchor="middle" class="label">UNKNOWN</text>
+          <text x="454" y="257" text-anchor="middle" class="small muted">proof missing</text>
+
+          <rect x="132" y="342" width="356" height="48" rx="8" fill="#17202a"></rect>
+          <text x="310" y="364" text-anchor="middle" class="label white">Model proposes. Evidence validates.</text>
+          <text x="310" y="383" text-anchor="middle" class="small" fill="#d4dde8">No source-only truth claim.</text>
+        </svg>
+
+        <div class="canvas">
+          <article class="card good">
+            <h2>Core claim</h2>
+            <p>VulnSignal ranks suspicious file/function/line windows inside a task. It does not decide final vulnerability truth.</p>
+          </article>
+          <article class="card warn">
+            <h2>Source-only track</h2>
+            <p>Useful for language-model-assisted triage and baseline ranking, but weaker unless checker/oracle evidence validates outputs.</p>
+          </article>
+          <article class="card bad">
+            <h2>Blocked drift</h2>
+            <p>No binary vulnerable/non-vulnerable dataset and no language-model agreement as ground truth.</p>
+          </article>
+        </div>
+      </div>
+
+      <footer>
+        <span>Evidence-grounded candidate ranking</span>
+        <span>Source -> evidence -> ranking -> validation</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Dataset creation funnel">
+      <header>
+        <div>
+          <div class="kicker">Dataset Creation</div>
+          <h1>Original public artifacts become VulnSignal records only after source and evidence checks</h1>
+        </div>
+        <div class="tag">2 / 5</div>
+      </header>
+
+      <div class="canvas two-col">
+        <svg viewBox="0 0 620 420" role="img" aria-label="Original source artifacts funnel into VulnSignal records">
+          <defs>
+            <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#1a7f37"></path>
+            </marker>
+          </defs>
+          <rect x="24" y="26" width="170" height="58" rx="8" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"></rect>
+          <text x="109" y="51" text-anchor="middle" class="label">OSS-Fuzz</text>
+          <text x="109" y="70" text-anchor="middle" class="small muted">public repro cases</text>
+          <rect x="225" y="26" width="170" height="58" rx="8" fill="#e6f0ff" stroke="#1f6feb" stroke-width="2"></rect>
+          <text x="310" y="51" text-anchor="middle" class="label">CodeQL Tasks</text>
+          <text x="310" y="70" text-anchor="middle" class="small muted">rules + facts</text>
+          <rect x="426" y="26" width="170" height="58" rx="8" fill="#fff2d8" stroke="#9a5b00" stroke-width="2"></rect>
+          <text x="511" y="51" text-anchor="middle" class="label">OSV / GHSA</text>
+          <text x="511" y="70" text-anchor="middle" class="small muted">advisory metadata</text>
+
+          <path d="M109 84 C120 132 218 140 260 174" stroke="#1a7f37" stroke-width="3" fill="none" marker-end="url(#arrow2)"></path>
+          <path d="M310 84 V166" stroke="#1a7f37" stroke-width="3" fill="none" marker-end="url(#arrow2)"></path>
+          <path d="M511 84 C500 132 402 140 360 174" stroke="#1a7f37" stroke-width="3" fill="none" marker-end="url(#arrow2)"></path>
+
+          <path d="M94 166 L526 166 L462 268 L158 268 Z" fill="#fbfcfe" stroke="#c9d3df" stroke-width="2"></path>
+          <text x="310" y="205" text-anchor="middle" class="title">Admission Gate</text>
+          <text x="310" y="230" text-anchor="middle" class="small muted">license + provenance + reproducibility + split policy</text>
+
+          <path d="M310 268 V312" stroke="#1a7f37" stroke-width="3" marker-end="url(#arrow2)"></path>
+
+          <rect x="82" y="324" width="456" height="70" rx="8" fill="#17202a"></rect>
+          <text x="310" y="350" text-anchor="middle" class="label white">VulnSignal Derived Files</text>
+          <text x="310" y="373" text-anchor="middle" class="small" fill="#d4dde8">tasks + candidates + windows + facts + oracles + labels + agent views</text>
+        </svg>
+
+        <div class="canvas">
+          <article class="card good">
+            <h2>Strong / conditional</h2>
+            <p>Public reproduced dynamic-oracle cases and CodeQL/checker tasks with normalized facts.</p>
+          </article>
+          <article class="card warn">
+            <h2>Weak expansion</h2>
+            <p>OSV, GHSA, CVEfixes, and MoreFixes generate candidates. Patch/advisory rows are not root-cause truth alone.</p>
+          </article>
+          <article class="card bad">
+            <h2>Scale reality</h2>
+            <p>Object-lifetime pilot: 50-100 tasks. 300-task v0 requires multi-family C/C++ scope.</p>
+          </article>
+        </div>
+      </div>
+
+      <footer>
+        <span>Original artifact -> derived VulnSignal records</span>
+        <span>No advisory-only truth</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Task to candidates visual">
+      <header>
+        <div>
+          <div class="kicker">Task To Candidates</div>
+          <h1>One investigation expands into a ranked queue of existing source-code locations</h1>
+        </div>
+        <div class="tag">3 / 5</div>
+      </header>
+
+      <div class="canvas two-col">
+        <svg viewBox="0 0 620 420" role="img" aria-label="One task expands to candidate buckets and review queue">
+          <defs>
+            <marker id="arrow3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#6f42c1"></path>
+            </marker>
+          </defs>
+          <rect x="24" y="142" width="150" height="112" rx="10" fill="#efe7fb" stroke="#6f42c1" stroke-width="2"></rect>
+          <text x="99" y="174" text-anchor="middle" class="title">Task</text>
+          <text x="99" y="200" text-anchor="middle" class="small muted">one source snapshot</text>
+          <text x="99" y="219" text-anchor="middle" class="small muted">one crash/rule/case</text>
+          <text x="99" y="238" text-anchor="middle" class="small muted">one review question</text>
+          <path d="M174 198 H226" stroke="#6f42c1" stroke-width="4" marker-end="url(#arrow3)"></path>
+
+          <rect x="228" y="28" width="192" height="40" rx="7" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"></rect>
+          <text x="324" y="53" text-anchor="middle" class="label">Crash frames 0-3</text>
+          <rect x="228" y="78" width="192" height="40" rx="7" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"></rect>
+          <text x="324" y="103" text-anchor="middle" class="label">Patch hunks 0-5</text>
+          <rect x="228" y="128" width="192" height="40" rx="7" fill="#e6f0ff" stroke="#1f6feb" stroke-width="2"></rect>
+          <text x="324" y="153" text-anchor="middle" class="label">Same function 5-10</text>
+          <rect x="228" y="178" width="192" height="40" rx="7" fill="#e6f0ff" stroke="#1f6feb" stroke-width="2"></rect>
+          <text x="324" y="203" text-anchor="middle" class="label">Same file 10-20</text>
+          <rect x="228" y="228" width="192" height="40" rx="7" fill="#fff2d8" stroke="#9a5b00" stroke-width="2"></rect>
+          <text x="324" y="253" text-anchor="middle" class="label">CodeQL paths 0-10</text>
+          <rect x="228" y="278" width="192" height="40" rx="7" fill="#fff2d8" stroke="#9a5b00" stroke-width="2"></rect>
+          <text x="324" y="303" text-anchor="middle" class="label">Neighbors 10-15</text>
+          <rect x="228" y="328" width="192" height="40" rx="7" fill="#ffe8e4" stroke="#b42318" stroke-width="2"></rect>
+          <text x="324" y="353" text-anchor="middle" class="label">Hard negatives 10+</text>
+
+          <path d="M420 48 C480 70 480 178 516 198" stroke="#6f42c1" stroke-width="3" fill="none" marker-end="url(#arrow3)"></path>
+          <path d="M420 348 C480 326 480 218 516 198" stroke="#6f42c1" stroke-width="3" fill="none" marker-end="url(#arrow3)"></path>
+          <rect x="518" y="136" width="78" height="126" rx="10" fill="#17202a"></rect>
+          <text x="557" y="170" text-anchor="middle" class="label white">Review</text>
+          <text x="557" y="190" text-anchor="middle" class="label white">Queue</text>
+          <text x="557" y="220" text-anchor="middle" class="small" fill="#d4dde8">ranked</text>
+          <text x="557" y="238" text-anchor="middle" class="small" fill="#d4dde8">windows</text>
+        </svg>
+
+        <div class="canvas">
+          <article class="card good">
+            <h2>Candidate location</h2>
+            <p>A pointer to an existing file/function/line window. It is not a mutated program or generated code.</p>
+          </article>
+          <article class="card warn">
+            <h2>Evidence-dependent</h2>
+            <p>Not every task has every bucket. Missing evidence creates no rows or UNKNOWN, not fabricated data.</p>
+          </article>
+          <article class="card purple">
+            <h2>20k candidates</h2>
+            <p>Means 20k places to rank across tasks, not 20k bugs or 20k confirmed labels.</p>
+          </article>
+        </div>
+      </div>
+
+      <footer>
+        <span>One task -> many existing source windows</span>
+        <span>Evidence-dependent candidate buckets</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Inference pipeline visual">
+      <header>
+        <div>
+          <div class="kicker">Inference-Time Build</div>
+          <h1>New source snapshots must pass through a runtime evidence pipeline before ranking</h1>
+        </div>
+        <div class="tag">4 / 5</div>
+      </header>
+
+      <div class="canvas two-col">
+        <svg viewBox="0 0 620 420" role="img" aria-label="Inference runtime pipeline and agent harness">
+          <defs>
+            <marker id="arrow4" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#17202a"></path>
+            </marker>
+          </defs>
+          <rect x="24" y="40" width="118" height="64" rx="8" fill="#e6f0ff" stroke="#1f6feb" stroke-width="2"></rect>
+          <text x="83" y="68" text-anchor="middle" class="label">Source</text>
+          <text x="83" y="88" text-anchor="middle" class="small muted">snapshot</text>
+          <path d="M142 72 H190" stroke="#17202a" stroke-width="3" marker-end="url(#arrow4)"></path>
+          <rect x="192" y="40" width="118" height="64" rx="8" fill="#efe7fb" stroke="#6f42c1" stroke-width="2"></rect>
+          <text x="251" y="66" text-anchor="middle" class="label">Candidate</text>
+          <text x="251" y="86" text-anchor="middle" class="small muted">generator</text>
+          <path d="M310 72 H358" stroke="#17202a" stroke-width="3" marker-end="url(#arrow4)"></path>
+          <rect x="360" y="40" width="118" height="64" rx="8" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"></rect>
+          <text x="419" y="66" text-anchor="middle" class="label">Evidence</text>
+          <text x="419" y="86" text-anchor="middle" class="small muted">builders</text>
+          <path d="M478 72 H526" stroke="#17202a" stroke-width="3" marker-end="url(#arrow4)"></path>
+          <rect x="528" y="40" width="68" height="64" rx="8" fill="#fff2d8" stroke="#9a5b00" stroke-width="2"></rect>
+          <text x="562" y="68" text-anchor="middle" class="label">Rank</text>
+          <text x="562" y="88" text-anchor="middle" class="small muted">top-k</text>
+
+          <rect x="62" y="160" width="496" height="170" rx="10" fill="#fbfcfe" stroke="#c9d3df" stroke-width="2"></rect>
+          <text x="310" y="190" text-anchor="middle" class="title">Runtime Artifacts</text>
+          <rect x="86" y="214" width="124" height="42" rx="7" fill="#e6f0ff" stroke="#1f6feb"></rect>
+          <text x="148" y="240" text-anchor="middle" class="small">source_windows</text>
+          <rect x="230" y="214" width="124" height="42" rx="7" fill="#e6f4ea" stroke="#1a7f37"></rect>
+          <text x="292" y="240" text-anchor="middle" class="small">codeql_facts</text>
+          <rect x="374" y="214" width="124" height="42" rx="7" fill="#efe7fb" stroke="#6f42c1"></rect>
+          <text x="436" y="240" text-anchor="middle" class="small">agent_views</text>
+          <rect x="158" y="272" width="132" height="42" rx="7" fill="#fff2d8" stroke="#9a5b00"></rect>
+          <text x="224" y="298" text-anchor="middle" class="small">ranked_candidates</text>
+          <rect x="314" y="272" width="132" height="42" rx="7" fill="#ffe8e4" stroke="#b42318"></rect>
+          <text x="380" y="298" text-anchor="middle" class="small">review_packet</text>
+          <text x="310" y="372" text-anchor="middle" class="label">Labels and fixed source stay hidden unless a checker/oracle runs.</text>
+        </svg>
+
+        <div class="canvas">
+          <article class="card good">
+            <h2>Agent harness allowed</h2>
+            <p>Agents can create summaries, hypotheses, affected-object guesses, review questions, and test ideas as auxiliary views.</p>
+          </article>
+          <article class="card warn">
+            <h2>Fact grounding separate</h2>
+            <p>No CodeQL/fact-path grounding unless the checker pipeline creates it. No PASS/FAIL/UNKNOWN unless a checker runs.</p>
+          </article>
+          <article class="card bad">
+            <h2>No agent truth</h2>
+            <p>No final vulnerability truth from source text or language-model agreement. Agents do not replace validation.</p>
+          </article>
+        </div>
+      </div>
+
+      <footer>
+        <span>Runtime evidence pipeline + optional agent views</span>
+        <span>Inference is not raw source-code-in, answer-out</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Scale and human review visual">
+      <header>
+        <div>
+          <div class="kicker">Scale Without Exhaustive Manual Review</div>
+          <h1>Humans audit the system and top evidence packets, not every candidate row</h1>
+        </div>
+        <div class="tag">5 / 5</div>
+      </header>
+
+      <div class="canvas two-col">
+        <svg viewBox="0 0 620 420" role="img" aria-label="Tasks candidates and bounded human review budget">
+          <rect x="28" y="44" width="156" height="82" rx="10" fill="#e6f0ff" stroke="#1f6feb" stroke-width="2"></rect>
+          <text x="106" y="78" text-anchor="middle" class="title">300 Tasks</text>
+          <text x="106" y="103" text-anchor="middle" class="small muted">multi-family v0</text>
+          <rect x="232" y="44" width="156" height="82" rx="10" fill="#efe7fb" stroke="#6f42c1" stroke-width="2"></rect>
+          <text x="310" y="78" text-anchor="middle" class="title">20k Candidates</text>
+          <text x="310" y="103" text-anchor="middle" class="small muted">places to rank</text>
+          <rect x="436" y="44" width="156" height="82" rx="10" fill="#fff2d8" stroke="#9a5b00" stroke-width="2"></rect>
+          <text x="514" y="78" text-anchor="middle" class="title">1.5k-2.1k</text>
+          <text x="514" y="103" text-anchor="middle" class="small muted">review packets</text>
+          <path d="M184 85 H232" stroke="#17202a" stroke-width="3"></path>
+          <path d="M388 85 H436" stroke="#17202a" stroke-width="3"></path>
+
+          <rect x="72" y="182" width="476" height="152" rx="10" fill="#fbfcfe" stroke="#c9d3df" stroke-width="2"></rect>
+          <text x="310" y="214" text-anchor="middle" class="title">Human Review Budget</text>
+          <text x="310" y="246" text-anchor="middle" class="label">Per task: top 3-5 packets + 1-2 sampled negative/UNKNOWN packets</text>
+          <text x="310" y="278" text-anchor="middle" class="label">Bulk labels: checker/oracle evidence + explicit UNKNOWN</text>
+          <text x="310" y="310" text-anchor="middle" class="label">No exhaustive manual labeling of candidate rows</text>
+          <rect x="138" y="368" width="344" height="36" rx="8" fill="#17202a"></rect>
+          <text x="310" y="391" text-anchor="middle" class="label white">Quality control, not human labeling engine</text>
+        </svg>
+
+        <div class="canvas">
+          <article class="card good">
+            <h2>Pilot target</h2>
+            <p>Object-lifetime/refcount pilot: 50-100 tasks and 5k-10k candidates. This validates schema and checkers.</p>
+          </article>
+          <article class="card warn">
+            <h2>v0 training target</h2>
+            <p>300 tasks and 20k candidates require multi-family C/C++ scope, not a pure refcount promise.</p>
+          </article>
+          <article class="card bad">
+            <h2>Blocked workflow</h2>
+            <p>Do not design around humans inspecting 20k+ rows. Use top-k packets, stratified sampling, and escalation.</p>
+          </article>
+        </div>
+      </div>
+
+      <footer>
+        <span>Bounded human audit</span>
+        <span>Top-k review + stratified sampling + escalation</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Deep learning model architecture visual">
+      <header>
+        <div>
+          <div class="kicker">Model Architecture</div>
+          <h1>Multi-view neural ranker: encode source, facts, context, then fuse and score candidates</h1>
+        </div>
+        <div class="tag">Model addendum</div>
+      </header>
+
+      <div class="canvas two-col">
+        <svg viewBox="0 0 640 420" role="img" aria-label="VulnSignal neural model architecture with embeddings fusion heads and losses">
+          <defs>
+            <marker id="arrow5" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#17202a"></path>
+            </marker>
+          </defs>
+          <rect x="20" y="34" width="138" height="48" rx="8" fill="#e6f0ff" stroke="#1f6feb" stroke-width="2"></rect>
+          <text x="89" y="62" text-anchor="middle" class="label">Source window</text>
+          <rect x="20" y="104" width="138" height="48" rx="8" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"></rect>
+          <text x="89" y="132" text-anchor="middle" class="label">Fact/path rows</text>
+          <rect x="20" y="174" width="138" height="48" rx="8" fill="#fff2d8" stroke="#9a5b00" stroke-width="2"></rect>
+          <text x="89" y="202" text-anchor="middle" class="label">Task context</text>
+          <rect x="20" y="244" width="138" height="48" rx="8" fill="#efe7fb" stroke="#6f42c1" stroke-width="2"></rect>
+          <text x="89" y="272" text-anchor="middle" class="label">Agent view</text>
+
+          <rect x="210" y="30" width="126" height="56" rx="8" fill="#e6f0ff" stroke="#1f6feb" stroke-width="2"></rect>
+          <text x="273" y="54" text-anchor="middle" class="label">Code encoder</text>
+          <text x="273" y="73" text-anchor="middle" class="small muted">token embeddings</text>
+          <rect x="210" y="104" width="126" height="56" rx="8" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"></rect>
+          <text x="273" y="128" text-anchor="middle" class="label">Fact encoder</text>
+          <text x="273" y="147" text-anchor="middle" class="small muted">type/path embeddings</text>
+          <rect x="210" y="178" width="126" height="56" rx="8" fill="#fff2d8" stroke="#9a5b00" stroke-width="2"></rect>
+          <text x="273" y="202" text-anchor="middle" class="label">Context encoder</text>
+          <text x="273" y="221" text-anchor="middle" class="small muted">brief/crash embeddings</text>
+          <rect x="210" y="252" width="126" height="56" rx="8" fill="#efe7fb" stroke="#6f42c1" stroke-width="2"></rect>
+          <text x="273" y="276" text-anchor="middle" class="label">Agent encoder</text>
+          <text x="273" y="295" text-anchor="middle" class="small muted">summary embeddings</text>
+
+          <path d="M158 58 H210" stroke="#17202a" stroke-width="2.5" marker-end="url(#arrow5)"></path>
+          <path d="M158 128 H210" stroke="#17202a" stroke-width="2.5" marker-end="url(#arrow5)"></path>
+          <path d="M158 198 H210" stroke="#17202a" stroke-width="2.5" marker-end="url(#arrow5)"></path>
+          <path d="M158 268 H210" stroke="#17202a" stroke-width="2.5" marker-end="url(#arrow5)"></path>
+
+          <rect x="394" y="118" width="128" height="102" rx="12" fill="#17202a"></rect>
+          <text x="458" y="151" text-anchor="middle" class="label white">Cross-view</text>
+          <text x="458" y="173" text-anchor="middle" class="label white">attention</text>
+          <text x="458" y="196" text-anchor="middle" class="small" fill="#d4dde8">candidate fusion</text>
+          <path d="M336 58 C374 58 370 134 394 148" stroke="#17202a" stroke-width="2.5" fill="none" marker-end="url(#arrow5)"></path>
+          <path d="M336 132 H394" stroke="#17202a" stroke-width="2.5" marker-end="url(#arrow5)"></path>
+          <path d="M336 206 C374 206 370 180 394 174" stroke="#17202a" stroke-width="2.5" fill="none" marker-end="url(#arrow5)"></path>
+          <path d="M336 280 C374 280 370 204 394 196" stroke="#17202a" stroke-width="2.5" fill="none" marker-end="url(#arrow5)"></path>
+
+          <rect x="554" y="34" width="70" height="44" rx="8" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"></rect>
+          <text x="589" y="61" text-anchor="middle" class="small">rank</text>
+          <rect x="554" y="94" width="70" height="44" rx="8" fill="#e6f0ff" stroke="#1f6feb" stroke-width="2"></rect>
+          <text x="589" y="121" text-anchor="middle" class="small">rule</text>
+          <rect x="554" y="154" width="70" height="44" rx="8" fill="#fff2d8" stroke="#9a5b00" stroke-width="2"></rect>
+          <text x="589" y="181" text-anchor="middle" class="small">object</text>
+          <rect x="554" y="214" width="70" height="44" rx="8" fill="#efe7fb" stroke="#6f42c1" stroke-width="2"></rect>
+          <text x="589" y="241" text-anchor="middle" class="small">evidence</text>
+          <rect x="554" y="274" width="70" height="44" rx="8" fill="#ffe8e4" stroke="#b42318" stroke-width="2"></rect>
+          <text x="589" y="301" text-anchor="middle" class="small">UNKNOWN</text>
+          <path d="M522 156 C540 140 542 66 554 56" stroke="#17202a" stroke-width="2.5" fill="none" marker-end="url(#arrow5)"></path>
+          <path d="M522 160 C540 154 542 122 554 116" stroke="#17202a" stroke-width="2.5" fill="none" marker-end="url(#arrow5)"></path>
+          <path d="M522 169 H554" stroke="#17202a" stroke-width="2.5" marker-end="url(#arrow5)"></path>
+          <path d="M522 180 C540 188 542 230 554 236" stroke="#17202a" stroke-width="2.5" fill="none" marker-end="url(#arrow5)"></path>
+          <path d="M522 190 C540 206 542 286 554 296" stroke="#17202a" stroke-width="2.5" fill="none" marker-end="url(#arrow5)"></path>
+
+          <rect x="44" y="336" width="552" height="70" rx="8" fill="#fbfcfe" stroke="#c9d3df" stroke-width="2"></rect>
+          <text x="320" y="357" text-anchor="middle" class="label">Training objective</text>
+          <text x="320" y="378" text-anchor="middle" class="small muted">L = L_rank + lambda_rule L_rule + lambda_obj L_object + lambda_ev L_evidence + lambda_cal L_unknown</text>
+          <text x="320" y="396" text-anchor="middle" class="small muted">Ranking is grouped by task_id; labels come from checker/oracle/weak provenance/UNKNOWN.</text>
+        </svg>
+
+        <div class="canvas">
+          <article class="card good">
+            <h2>Embeddings</h2>
+            <p>Code tokens, fact types, path nodes, task context, and optional agent summaries each get a separate view encoder.</p>
+          </article>
+          <article class="card warn">
+            <h2>Fusion</h2>
+            <p>Cross-view attention or gated fusion builds one candidate embedding per file/function/line window.</p>
+          </article>
+          <article class="card purple">
+            <h2>Heads</h2>
+            <p>Rank score, rule family, affected object, evidence selection, test guidance, and UNKNOWN/confidence.</p>
+          </article>
+          <article class="card warn">
+            <h2>Loss functions</h2>
+            <ul>
+              <li><strong>Rank:</strong> pairwise margin or listwise softmax within each task.</li>
+              <li><strong>Rule/object:</strong> cross-entropy on validated labels.</li>
+              <li><strong>Evidence:</strong> binary cross-entropy over linked fact IDs.</li>
+              <li><strong>UNKNOWN:</strong> calibration/abstention loss for incomplete proof.</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+
+      <footer>
+        <span>Compact visual deck addendum: model</span>
+        <span>Learned ranker with evidence-grounded labels</span>
+      </footer>
+    </section>
+  </main>
+</body>
+</html>

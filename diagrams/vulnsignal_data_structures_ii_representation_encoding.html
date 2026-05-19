@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VulnSignal Data Structures II - Representation and Encoding</title>
+  <style>
+    :root {
+      --ink: #16212c;
+      --muted: #5e6975;
+      --line: #ccd6e2;
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --source: #e5f3ee;
+      --source-line: #70aa91;
+      --facts: #e4effc;
+      --facts-line: #6b97ca;
+      --meta: #f6ecd7;
+      --meta-line: #c79a49;
+      --guard: #f9dfdf;
+      --guard-line: #c46e6e;
+      --model: #ede6f5;
+      --model-line: #9070ae;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .slide {
+      width: min(1480px, 96vw);
+      aspect-ratio: 16 / 9;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 22px 60px rgb(22 33 44 / 14%);
+      padding: 42px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 22px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 28px;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      max-width: 830px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.35;
+    }
+
+    .badge {
+      border: 1px solid var(--model-line);
+      background: var(--model);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 0.9fr 1.25fr 1fr;
+      gap: 22px;
+      min-height: 0;
+    }
+
+    .lane {
+      display: grid;
+      gap: 14px;
+      align-content: stretch;
+    }
+
+    .card {
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      padding: 15px;
+      background: #fff;
+    }
+
+    .card h2 {
+      margin: 0 0 9px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .source { background: var(--source); border-color: var(--source-line); }
+    .facts { background: var(--facts); border-color: var(--facts-line); }
+    .meta { background: var(--meta); border-color: var(--meta-line); }
+    .guard { background: var(--guard); border-color: var(--guard-line); }
+    .model { background: var(--model); border-color: var(--model-line); }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 14px;
+      line-height: 1.38;
+    }
+
+    li + li { margin-top: 5px; }
+
+    .pipeline {
+      display: grid;
+      grid-template-rows: repeat(5, 1fr);
+      gap: 12px;
+      align-self: stretch;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: center;
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 12px;
+    }
+
+    .num {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--ink);
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 15px;
+    }
+
+    .step span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .decision {
+      border: 2px solid var(--model-line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fbf8ff;
+    }
+
+    .decision h2 {
+      margin: 0 0 10px;
+      font-size: 19px;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+  </style>
+</head>
+<body>
+  <section class="slide" aria-label="VulnSignal representation and encoding diagram">
+    <header>
+      <div>
+        <h1>Data Structures II: Source Code Representation</h1>
+        <div class="subtitle">v0 consumes three explicit views: bounded source-token sequences, typed CodeQL fact/path records, and task-level candidate lists. Graphs are derived later, not the first training format.</div>
+      </div>
+      <div class="badge">Representation v0</div>
+    </header>
+
+    <main>
+      <section class="lane" aria-label="input views">
+        <article class="card source">
+          <h2>Source Sequence View</h2>
+          <ul>
+            <li>JSONL row keyed by <code>candidate_id</code>.</li>
+            <li>Deterministic token list from candidate file/function/line window.</li>
+            <li>Consumed by source encoder as one bounded sequence per candidate.</li>
+          </ul>
+        </article>
+
+        <article class="card facts">
+          <h2>Fact / Path Record View</h2>
+          <ul>
+            <li>Typed records: fact ID, kind, predicate, object ID, source anchor.</li>
+            <li>Optional edge/path fields: src, dst, edge kind, path index.</li>
+            <li>Consumed by fact/path encoder; graph view is derived later.</li>
+          </ul>
+        </article>
+
+        <article class="card meta">
+          <h2>Task Candidate List View</h2>
+          <ul>
+            <li>One task row points to many candidate IDs.</li>
+            <li>Labels live separately with strength and provenance.</li>
+            <li>Consumed by pairwise/listwise ranker inside each <code>task_id</code>.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="pipeline" aria-label="encoding algorithm">
+        <div class="step">
+          <div class="num">1</div>
+          <div><strong>Parse contract files</strong><span>Load task instances, candidates, facts, and labels as separate tables.</span></div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div><strong>Build source sequences</strong><span>Extract bounded token sequences around each file/function/line candidate.</span></div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div><strong>Attach fact/path records</strong><span>Join CodeQL fact IDs, rule IDs, object IDs, source anchors, and edge/path records to each candidate.</span></div>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <div><strong>Mask leakage fields</strong><span>Exclude label source, fixed source, patch diff, and oracle result from inference inputs.</span></div>
+        </div>
+        <div class="step">
+          <div class="num">5</div>
+          <div><strong>Create ranking groups</strong><span>Train and evaluate candidates within the same task instance.</span></div>
+        </div>
+      </section>
+
+      <section class="lane" aria-label="model decision">
+        <article class="decision">
+          <h2>v0 Model Decision</h2>
+          <ul>
+            <li>Source sequence encoder.</li>
+            <li>Fact/path record encoder.</li>
+            <li>Task-level listwise or pairwise ranking head.</li>
+            <li>Prediction: suspicious location, object, rule, evidence, test guidance, confidence / UNKNOWN.</li>
+          </ul>
+        </article>
+
+        <article class="card model">
+          <h2>Deferred, Not Discarded</h2>
+          <ul>
+            <li>Graph model is deferred until dataset quality justifies it.</li>
+            <li>Graph-ready IDs are still stored now.</li>
+            <li>Language-model assistance is allowed for triage and enrichment, not truth.</li>
+          </ul>
+        </article>
+
+        <article class="card guard">
+          <h2>Not The Primary Design</h2>
+          <ul>
+            <li>No generic vulnerable / non-vulnerable classifier.</li>
+            <li>No language-model-first architecture.</li>
+            <li>No reward model before checker-grounded data exists.</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <span>Aligned with E022 dataset contract and E026 ranker prototype</span>
+      <span>VulnSignal: source + facts + checker/oracle labels</span>
+    </footer>
+  </section>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VulnSignal Data Structures I - Intake Contract</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #5b6774;
+      --line: #cad4df;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --green: #dff4e7;
+      --green-line: #72b88a;
+      --blue: #e2eefc;
+      --blue-line: #6d95ca;
+      --amber: #fff0cf;
+      --amber-line: #d09a2d;
+      --red: #fde4e4;
+      --red-line: #ca6e6e;
+      --purple: #eadff7;
+      --purple-line: #9373b4;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .slide {
+      width: min(1480px, 96vw);
+      aspect-ratio: 16 / 9;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 22px 60px rgb(23 32 42 / 14%);
+      padding: 44px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 26px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 32px;
+      align-items: start;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      letter-spacing: 0;
+      line-height: 1.12;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 780px;
+    }
+
+    .badge {
+      border: 1px solid var(--purple-line);
+      background: var(--purple);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 1.1fr 0.72fr 1fr;
+      gap: 22px;
+      min-height: 0;
+    }
+
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .card {
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    .card h2, .contract h2, .reject h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .green { background: var(--green); border-color: var(--green-line); }
+    .blue { background: var(--blue); border-color: var(--blue-line); }
+    .amber { background: var(--amber); border-color: var(--amber-line); }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.38;
+    }
+
+    li + li { margin-top: 5px; }
+
+    .arrow-column {
+      display: grid;
+      align-content: center;
+      gap: 14px;
+    }
+
+    .arrow {
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcfe;
+      text-align: center;
+      font-weight: 800;
+      color: var(--muted);
+      position: relative;
+    }
+
+    .arrow::after {
+      content: "->";
+      display: block;
+      margin-top: 8px;
+      font-size: 28px;
+      color: var(--ink);
+    }
+
+    .contract {
+      border: 2px solid var(--blue-line);
+      border-radius: 8px;
+      background: #f5f9ff;
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .file {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px 12px;
+      background: #fff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    .tag {
+      border-radius: 999px;
+      background: #eef2f6;
+      padding: 4px 8px;
+      font-family: inherit;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .reject {
+      border: 2px solid var(--red-line);
+      border-radius: 8px;
+      background: var(--red);
+      padding: 16px;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+  </style>
+</head>
+<body>
+  <section class="slide" aria-label="VulnSignal intake contract diagram">
+    <header>
+      <div>
+        <h1>Data Structures I: Source Intake Contract</h1>
+        <div class="subtitle">VulnSignal starts with evidence-bearing source tasks, then normalizes every source into <code>(task_instance, candidate_location)</code> records with checker/oracle truth.</div>
+      </div>
+      <div class="badge">E022 Contract</div>
+    </header>
+
+    <main>
+      <section class="stack" aria-label="input families">
+        <article class="card green">
+          <h2>Input Type A: Dynamic Oracle Corpora</h2>
+          <ul>
+            <li>Sanitizer crash, reproducer, fuzz test, KUnit, or syzkaller-style case.</li>
+            <li>Requires source snapshot, build/test command, observed behavior, and affected component.</li>
+            <li>Produces strongest labels when the behavior is reproducible.</li>
+          </ul>
+        </article>
+
+        <article class="card blue">
+          <h2>Input Type B: CodeQL / Checker Tasks</h2>
+          <ul>
+            <li>CodeQL database plus normalized semantic facts.</li>
+            <li>Rule-specific PASS / FAIL / UNKNOWN from lifecycle or security checkers.</li>
+            <li>Conditional truth: valid for the encoded rule and available facts.</li>
+          </ul>
+        </article>
+
+        <article class="card amber">
+          <h2>Input Type C: Patch / Advisory Sources</h2>
+          <ul>
+            <li>CVEfixes, OSV, MoreFixes, GHSA, or project security patches.</li>
+            <li>Used for candidate expansion and weak labels only by default.</li>
+            <li>Upgraded only when tied to CodeQL facts, before/after evidence, or an oracle.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="arrow-column" aria-label="normalization">
+        <div class="arrow">Normalize source snapshot, evidence, and rule context</div>
+        <div class="arrow">Generate candidate locations and CodeQL fact links</div>
+        <div class="arrow">Assign label source and confidence without hiding UNKNOWN</div>
+      </section>
+
+      <section class="stack" aria-label="canonical contract">
+        <article class="contract">
+          <h2>Canonical E022 Files</h2>
+          <div class="file"><span>task_instances.jsonl</span><span class="tag">task scope</span></div>
+          <div class="file"><span>candidate_locations.jsonl</span><span class="tag">ranking unit</span></div>
+          <div class="file"><span>codeql_facts.jsonl</span><span class="tag">semantic facts</span></div>
+          <div class="file"><span>labels.jsonl</span><span class="tag">truth layer</span></div>
+        </article>
+
+        <article class="reject">
+          <h2>Rejected As Ground Truth</h2>
+          <ul>
+            <li>LLM consensus alone.</li>
+            <li>Regex or custom parser flags alone.</li>
+            <li>Generic vulnerable / non-vulnerable labels alone.</li>
+            <li>Historical patch labels alone.</li>
+            <li>Human opinion without reproducible evidence or checker output.</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <span>Aligned with <code>docs/slides/vulnsignal_dataset_development.html</code></span>
+      <span>VulnSignal: CodeQL/checker-grounded candidate ranking</span>
+    </footer>
+  </section>
+</body>
+</html>

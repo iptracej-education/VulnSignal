@@ -165,7 +165,7 @@ first_multi_family_dataset:
 
 The 300-task target is not credible if interpreted as 300 strong Linux object-lifetime/refcount vulnerabilities from one source. It should be treated as the first multi-family C/C++ dataset target after the object-lifetime pilot validates the pipeline.
 
-These datasets will be naturally imbalanced: most candidate locations are not the confirmed root cause, and many will remain `UNKNOWN`. Later training and evaluation sections mitigate this with task-level ranking losses, hard-negative sampling, explicit `UNKNOWN` calibration, and top-k review metrics instead of global balanced binary classification.
+These datasets will be naturally imbalanced and mixed-strength: most candidate locations are not the confirmed root cause, and many tasks will have conditional, weak, or `UNKNOWN` evidence rather than reproduced dynamic proof. This is not an exception to hide; it is the normal shape of real vulnerability-research data. VulnSignal therefore stores label value, label strength, evidence source, limitations, and UNKNOWN reason separately. Later training and evaluation sections mitigate this with task-level ranking losses, label-strength weighting, hard-negative sampling, explicit `UNKNOWN` calibration, and top-k review metrics instead of global balanced binary classification.
 
 ### Model Input Format
 
@@ -316,9 +316,9 @@ The $\lambda$ values are tunable scalar weights that control how much each auxil
 
 ### Training
 
-During training, each batch contains one or more tasks and their candidate locations. The model computes all prediction heads, combines their losses into $L_{\text{total}}$, and backpropagates the combined loss through the shared encoders, fusion layers, and heads.
+During training, each batch contains one or more tasks and their candidate locations. The model computes all prediction heads, combines their losses into $L_{\text{total}}$, and backpropagates the combined loss through the shared encoders, fusion layers, and heads. The model is expected to learn under incomplete and uneven evidence, not under a perfect-label assumption.
 
-The ranking component, $L_{\text{rank}}$, is computed within each `task_id`; candidates from unrelated tasks are not compared as one global binary class table. This helps with imbalance because the model compares candidates inside the same investigation task, while hard-negative sampling, label-strength weighting, and `UNKNOWN` calibration prevent the many negative or uncertain rows from dominating training.
+The ranking component, $L_{\text{rank}}$, is computed within each `task_id`; candidates from unrelated tasks are not compared as one global binary class table. This helps with imbalance because the model compares candidates inside the same investigation task, while hard-negative sampling, label-strength weighting, and `UNKNOWN` calibration prevent the many negative or uncertain rows from dominating training. Strong dynamic labels can receive the highest supervision weight, CodeQL/checker-conditional labels can receive rule-scoped weight, weak patch/advisory rows can receive reduced weight, and UNKNOWN rows can train abstention instead of being forced into false negatives.
 
 In the first implementation, $L_{\text{rank}}$ will use one ranking objective, either pairwise or listwise:
 
@@ -420,6 +420,8 @@ Required baselines:
 - CodeQL path/checker-only ranking
 
 Evaluation must report results by source family, rule family, project split, label strength, and availability of CodeQL/checker facts.
+
+Mixed-strength data must be reported explicitly. Overall metrics are not enough: VulnSignal should show performance separately for `dynamic`, `codeql_conditional`, `patch_confirmed_weak`, `weak`, and `UNKNOWN` rows. Weak or UNKNOWN rows should not be used to claim final vulnerability-detection accuracy.
 
 ## Challenges/Ethical Considerations & Risks
 

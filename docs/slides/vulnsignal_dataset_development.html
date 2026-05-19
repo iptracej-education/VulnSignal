@@ -1,0 +1,2775 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VulnSignal Dataset Development Slides</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #5d6977;
+      --line: #c8d2dc;
+      --paper: #f7f8fa;
+      --panel: #ffffff;
+      --blue: #1f6feb;
+      --green: #1a7f37;
+      --amber: #a15c00;
+      --red: #b42318;
+      --gray: #687385;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      display: grid;
+      gap: 28px;
+      padding: 28px;
+    }
+
+    .slide {
+      width: min(1280px, calc(100vw - 56px));
+      aspect-ratio: 16 / 9;
+      margin: 0 auto;
+      padding: 46px 54px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 14px 34px rgba(23, 32, 42, 0.08);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 22px;
+      page-break-after: always;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 24px;
+      border-bottom: 2px solid #edf1f5;
+      padding-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .kicker {
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .tag {
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      align-content: center;
+      position: relative;
+    }
+
+    .flow::before {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: 45%;
+      height: 3px;
+      background: var(--line);
+      z-index: 0;
+    }
+
+    .step {
+      position: relative;
+      z-index: 1;
+      min-height: 270px;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 18px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 10px;
+    }
+
+    .step strong {
+      font-size: 18px;
+      line-height: 1.15;
+    }
+
+    .num {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      color: #ffffff;
+      background: var(--blue);
+      border-radius: 50%;
+      font-weight: 800;
+    }
+
+    .step ul,
+    .shape ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.38;
+    }
+
+    .step li + li,
+    .shape li + li {
+      margin-top: 6px;
+    }
+
+    .step.llm {
+      border-color: #8bb8ff;
+    }
+
+    .step.checker {
+      border-color: #7fc894;
+    }
+
+    .step.audit {
+      border-color: #e4bb79;
+    }
+
+    .note {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: #f1f6ff;
+      color: #25446b;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 14px;
+      align-content: stretch;
+    }
+
+    .input-card {
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 16px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .input-card h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.15;
+    }
+
+    .input-card .label {
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .input-card pre {
+      margin: 0;
+      padding: 10px;
+      overflow: hidden;
+      border-radius: 6px;
+      background: #17202a;
+      color: #eef5ff;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 11px;
+      line-height: 1.28;
+      white-space: pre-wrap;
+    }
+
+    .input-card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .input-card li + li {
+      margin-top: 5px;
+    }
+
+    .input-card.wide {
+      grid-row: span 2;
+    }
+
+    .input-card.truth {
+      border-color: #7fc894;
+    }
+
+    .input-card.llm {
+      border-color: #8bb8ff;
+    }
+
+    .input-card.warn {
+      border-color: #e4bb79;
+    }
+
+    .source-map {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      align-content: stretch;
+    }
+
+    .source-card {
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fbfcfe;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 10px;
+    }
+
+    .source-card h2 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.15;
+    }
+
+    .source-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .source-card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .source-card li + li {
+      margin-top: 5px;
+    }
+
+    .source-card.strong {
+      border-color: #7fc894;
+    }
+
+    .source-card.conditional {
+      border-color: #8bb8ff;
+    }
+
+    .source-card.weak {
+      border-color: #e4bb79;
+    }
+
+    .transform {
+      display: grid;
+      grid-template-columns: 1fr 54px 1fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .arrow {
+      display: grid;
+      place-items: center;
+      color: var(--blue);
+      font-size: 34px;
+      font-weight: 900;
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .mini {
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+      padding: 11px 12px;
+      background: #fbfcfe;
+    }
+
+    .mini strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+
+    .mini span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .mini.good {
+      border-left-color: var(--green);
+    }
+
+    .mini.warn {
+      border-left-color: var(--amber);
+    }
+
+    .mini.bad {
+      border-left-color: var(--red);
+    }
+
+    .mini pre {
+      margin: 7px 0 0;
+      color: #eef5ff;
+      background: #17202a;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 10px;
+      line-height: 1.25;
+      white-space: pre-wrap;
+      overflow: hidden;
+    }
+
+    .note span:last-child {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .dataset {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .record {
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 18px;
+    }
+
+    .record h2,
+    .shape h2 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.15;
+    }
+
+    .schema {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .field {
+      min-height: 88px;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfcfe;
+    }
+
+    .field strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .field span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .field.truth {
+      border-left-color: var(--green);
+    }
+
+    .field.unknown {
+      border-left-color: var(--amber);
+    }
+
+    .field.no {
+      border-left-color: var(--red);
+    }
+
+    .shape {
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 16px;
+      background: #fbfcfe;
+    }
+
+    .pillrow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #edf1f5;
+      color: #344154;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .arch {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      align-content: stretch;
+    }
+
+    .lane {
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 16px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .lane h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.15;
+    }
+
+    .lane .stage {
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .lane ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .lane li + li {
+      margin-top: 5px;
+    }
+
+    .lane.good {
+      border-color: #7fc894;
+    }
+
+    .lane.warn {
+      border-color: #e4bb79;
+    }
+
+    .lane.bad {
+      border-color: #e89a92;
+    }
+
+    .lane pre {
+      margin: 0;
+      padding: 9px;
+      overflow: hidden;
+      border-radius: 6px;
+      background: #17202a;
+      color: #eef5ff;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 10px;
+      line-height: 1.25;
+      white-space: pre-wrap;
+    }
+
+    .diagram-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .diagram-panel {
+      border: 2px solid #7fc894;
+      border-radius: 8px;
+      background: #fbfcfe;
+      display: grid;
+      grid-template-rows: auto auto auto;
+      gap: 8px;
+      min-height: 0;
+      padding: 14px;
+    }
+
+    .diagram-panel .summary {
+      display: grid;
+      gap: 6px;
+    }
+
+    .diagram-panel .summary h2 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.15;
+    }
+
+    .diagram-panel .summary span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.28;
+    }
+
+    .diagram-panel pre {
+      margin: 0;
+      padding: 10px;
+      overflow: hidden;
+      border-radius: 6px;
+      background: #17202a;
+      color: #eef5ff;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 10px;
+      line-height: 1.28;
+      white-space: pre-wrap;
+    }
+
+    .diagram-panel ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .diagram-panel li + li {
+      margin-top: 4px;
+    }
+
+    .diagram-panel a {
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .arch-wide {
+      display: grid;
+      grid-template-columns: 1.08fr 1fr;
+      gap: 18px;
+      align-content: stretch;
+    }
+
+    .candidate-map {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .bucket-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .bucket {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+      padding: 9px 11px;
+      background: #fbfcfe;
+      font-size: 12px;
+    }
+
+    .bucket strong {
+      font-size: 13px;
+    }
+
+    .bucket span {
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .bucket.good {
+      border-left-color: var(--green);
+    }
+
+    .bucket.warn {
+      border-left-color: var(--amber);
+    }
+
+    .bucket.bad {
+      border-left-color: var(--red);
+    }
+
+    .pipeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .pipe-step {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #fbfcfe;
+    }
+
+    .pipe-step.good {
+      border-left-color: var(--green);
+    }
+
+    .pipe-step.warn {
+      border-left-color: var(--amber);
+    }
+
+    .pipe-step.bad {
+      border-left-color: var(--red);
+    }
+
+    .pipe-step .num {
+      width: 28px;
+      height: 28px;
+      font-size: 14px;
+    }
+
+    .pipe-step strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .pipe-step span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .pill.good {
+      background: #e6f4ea;
+      color: #17652f;
+    }
+
+    .pill.warn {
+      background: #fff2d6;
+      color: #7a4700;
+    }
+
+    .pill.bad {
+      background: #ffe8e4;
+      color: #8f1d14;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--gray);
+      font-size: 13px;
+      border-top: 1px solid #edf1f5;
+      padding-top: 14px;
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+
+      main {
+        padding: 0;
+        gap: 0;
+      }
+
+      .slide {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="slide" aria-label="Detailed input package">
+      <header>
+        <div>
+          <div class="kicker">VulnSignal Dataset Input</div>
+          <h1>A task must arrive as an evidence package, not a vague label</h1>
+        </div>
+        <div class="tag">Input detail</div>
+      </header>
+
+      <div class="input-grid">
+        <article class="input-card wide llm">
+          <div class="label">Task brief</div>
+          <h2>Vulnerability-research objective</h2>
+          <ul>
+            <li>Natural-language bug or rule description.</li>
+            <li>Target project, version, commit, and affected component.</li>
+            <li>Expected violated lifecycle/security rule.</li>
+            <li>Known constraints: available build, test, reproducer, crash, patch, or CodeQL rule.</li>
+          </ul>
+          <pre>{
+  "task_id": "e022-demo-001",
+  "project": "real_project",
+  "snapshot": "repo@pre_patch_commit",
+  "objective": "rank root-cause candidates",
+  "rule_family": "bounds|lifetime|refcount|uaf",
+  "known_inputs": ["source", "patch", "poc", "codeql_facts"]
+}</pre>
+        </article>
+
+        <article class="input-card">
+          <div class="label">Source snapshot</div>
+          <h2>Codebase and anchors</h2>
+          <ul>
+            <li>Repository path or archive hash.</li>
+            <li>Pre-patch source tree.</li>
+            <li>Entrypoint files and candidate files.</li>
+            <li>Function and line anchors.</li>
+          </ul>
+        </article>
+
+        <article class="input-card warn">
+          <div class="label">Patch evidence</div>
+          <h2>Before/after context</h2>
+          <ul>
+            <li>Patch diff and fixed commit when available.</li>
+            <li>Patch hunk is candidate evidence, not strong truth alone.</li>
+            <li>Used to generate positives, hard negatives, and context.</li>
+          </ul>
+        </article>
+
+        <article class="input-card truth">
+          <div class="label">Oracle package</div>
+          <h2>Runnable or checkable proof</h2>
+          <ul>
+            <li>PoC, fuzz input, sanitizer crash, syzkaller/KUnit later.</li>
+            <li>Expected pre-patch and post-patch behavior.</li>
+            <li>Command, exit code, and diagnostic output.</li>
+          </ul>
+        </article>
+
+        <article class="input-card truth">
+          <div class="label">Static analyzer facts</div>
+          <h2>CodeQL/checker inputs</h2>
+          <ul>
+            <li>Query names and normalized fact IDs.</li>
+            <li>Source/sink paths, object facts, lifecycle events.</li>
+            <li>Rule result: PASS, FAIL, or UNKNOWN.</li>
+          </ul>
+        </article>
+
+        <article class="input-card">
+          <div class="label">Execution environment</div>
+          <h2>Reproducibility metadata</h2>
+          <ul>
+            <li>Container, package dependencies, build commands.</li>
+            <li>Test command and resource limits.</li>
+            <li>Failure mode if the environment is incomplete.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Without this input detail, the dataset is still brainstorming.</span>
+        <span>Scripts and reviewers may assemble the package; analyzer/checker/oracle evidence determines label status.</span>
+      </div>
+
+      <footer>
+        <span>Input standard inspired by CyberGym-style task packets</span>
+        <span>Not a CyberGym training-data commitment</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Input source families">
+      <header>
+        <div>
+          <div class="kicker">Intake Decision</div>
+          <h1>These are the source families we will use, and how</h1>
+        </div>
+        <div class="tag">No drift</div>
+      </header>
+
+      <div class="source-map">
+        <article class="source-card strong">
+          <div class="pill good">Phase 1: train/eval seed</div>
+          <h2>Dynamic-oracle corpora</h2>
+          <p>Public OSS-Fuzz/ClusterFuzz reproducible issues first; Magma only as a reviewed pilot benchmark; syzkaller/KUnit later.</p>
+          <ul>
+            <li>Must include source snapshot.</li>
+            <li>Must include reproducer/crash or fuzz input.</li>
+            <li>Must include command/environment metadata.</li>
+            <li>Used for strongest root-cause ranking labels only after local reproduction.</li>
+          </ul>
+          <div class="pill good">Accepted label: dynamic</div>
+        </article>
+
+        <article class="source-card conditional">
+          <div class="pill good">Phase 1: semantic truth</div>
+          <h2>CodeQL/checker tasks</h2>
+          <p>We create these from selected source snapshots by running explicit rules over normalized facts.</p>
+          <ul>
+            <li>Must include query/rule ID.</li>
+            <li>Must include normalized fact IDs.</li>
+            <li>Must include source anchors.</li>
+            <li>Used for conditional PASS / FAIL / UNKNOWN.</li>
+          </ul>
+          <div class="pill good">Accepted label: codeql_conditional</div>
+        </article>
+
+        <article class="source-card weak">
+          <div class="pill warn">Phase 2: candidate expansion</div>
+          <h2>Patch/advisory datasets</h2>
+          <p>CVEfixes, OSV, MoreFixes, GitHub advisory metadata, project changelogs.</p>
+          <ul>
+            <li>Use to generate candidate tasks and hard negatives.</li>
+            <li>Patch hunk alone is never strong truth.</li>
+            <li>Upgrade only with checker/oracle/evidence.</li>
+            <li>Otherwise store as weak or UNKNOWN.</li>
+          </ul>
+          <div class="pill warn">Accepted label: weak candidate only</div>
+        </article>
+
+        <article class="source-card">
+          <div class="pill">Rejected intake</div>
+          <h2>Do not ingest as truth</h2>
+          <p>These can be notes or triage, but not labels.</p>
+          <ul>
+            <li>LLM consensus votes.</li>
+            <li>Regex/custom parser flags.</li>
+            <li>Generic vulnerable labels.</li>
+            <li>Human opinion without evidence package.</li>
+          </ul>
+          <div class="pill bad">Rejected as ground truth</div>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Decision: v0 trains/evaluates on dynamic-oracle and CodeQL/checker rows; patch/advisory rows expand candidates only.</span>
+        <span>No source enters training without label_strength and provenance.</span>
+      </div>
+
+      <footer>
+        <span>E022 source policy</span>
+        <span>Strong/conditional first; weak sources cannot masquerade as truth</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Original dataset preprocessing contract">
+      <header>
+        <div>
+          <div class="kicker">Original Inputs</div>
+          <h1>The VulnSignal dataset is derived from concrete source datasets, not invented labels</h1>
+        </div>
+        <div class="tag">Preprocess contract</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Primary train/eval seeds</div>
+          <h2>Executable-oracle bugs</h2>
+          <ul>
+            <li>Original inputs: public OSS-Fuzz/ClusterFuzz crash+fix records; Magma after license/provenance review.</li>
+            <li>Required artifacts: repo snapshot, buggy/fixed revision, reproducer or fuzz input, build/test command.</li>
+            <li>Preprocess into: task instance, crash-frame candidates, patch-hunk candidates, same-file hard negatives.</li>
+            <li>Label: strong only when pre-patch FAIL and post-patch PASS are reproducible.</li>
+          </ul>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">Primary conditional labels</div>
+          <h2>CodeQL/checker runs</h2>
+          <ul>
+            <li>Original inputs: selected source snapshots plus our CodeQL/lifecycle rule suite.</li>
+            <li>Required artifacts: CodeQL database metadata, query ID, normalized fact rows, source anchors.</li>
+            <li>Preprocess into: codeql_facts.jsonl, candidate locations from paths/rule hits, checker labels.</li>
+            <li>Label: conditional PASS / FAIL / UNKNOWN under the encoded rule and available facts.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Expansion only</div>
+          <h2>Patch/advisory datasets</h2>
+          <ul>
+            <li>Original inputs: OSV and GHSA metadata; CVEfixes and MoreFixes fix-commit tables after license/storage review.</li>
+            <li>Required artifacts: advisory ID, affected project, vulnerable/fixed commits, changed files/hunks.</li>
+            <li>Preprocess into: candidate tasks, patch-window candidates, hard negatives, weak provenance.</li>
+            <li>Label: weak or UNKNOWN until upgraded by checker/oracle/before-after evidence.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Decision: v0 starts with executable-oracle and CodeQL/checker rows; patch/advisory sources expand coverage only.</span>
+        <span>Every derived row must point back to an original dataset record and evidence artifact.</span>
+      </div>
+
+      <footer>
+        <span>Dataset creation rule</span>
+        <span>Original record -> task_instance -> candidate_locations + facts + labels</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Verified source and label policy">
+      <header>
+        <div>
+          <div class="kicker">Source Gate</div>
+          <h1>Usable does not mean strong; source family controls label strength</h1>
+        </div>
+        <div class="tag">No shortcut labels</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Use first</div>
+          <h2>Strong / conditional rows</h2>
+          <ul>
+            <li>Public OSS-Fuzz/ClusterFuzz issue only if locally reproducible.</li>
+            <li>VulnSignal CodeQL/checker task only with normalized facts and source anchors.</li>
+            <li>Dynamic oracle produces root-cause/non-root-cause candidates.</li>
+            <li>Checker produces PASS / FAIL / UNKNOWN under one explicit rule.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Weak expansion only</div>
+          <h2>Advisory and fix datasets</h2>
+          <ul>
+            <li>OSV and GHSA identify affected packages, versions, commits, and references.</li>
+            <li>CVEfixes and MoreFixes provide fix-commit candidates and patch windows.</li>
+            <li>They generate candidates and hard negatives; they do not prove root cause.</li>
+            <li>MoreFixes requires explicit license/storage review before inclusion.</li>
+          </ul>
+        </article>
+
+        <article class="lane bad">
+          <div class="stage">Holdout / blocked</div>
+          <h2>No contamination</h2>
+          <ul>
+            <li>CyberGym-style tasks are held out for evaluation by default.</li>
+            <li>Private OSS-Fuzz issues are excluded.</li>
+            <li>Patch-only and advisory-only rows cannot be strong labels.</li>
+            <li>Unclear redistribution license blocks source snapshot publication.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Decision: v0 truth comes from reproduced dynamic oracles and CodeQL/checker results.</span>
+        <span>Advisory datasets are source-discovery tools, not ground truth.</span>
+      </div>
+
+      <footer>
+        <span>Verified source decision</span>
+        <span>Every row keeps source_family, original_record_id, evidence_refs, and label_strength</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Family scope and imbalance policy">
+      <header>
+        <div>
+          <div class="kicker">Training Policy</div>
+          <h1>Start narrow on object lifetime, but do not build a balanced binary dataset</h1>
+        </div>
+        <div class="tag">Ranking data</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">First family</div>
+          <h2>Object lifetime / refcount</h2>
+          <ul>
+            <li>Use this repository's existing lifetime vocabulary and historical evidence first.</li>
+            <li>Rules: acquire-before-publish, publish-after-free, cancel/flush-before-destroy.</li>
+            <li>Best fit for CodeQL/lifecycle fact extraction and checker grounding.</li>
+          </ul>
+        </article>
+
+        <article class="lane">
+          <div class="stage">Schema must support</div>
+          <h2>Larger C/C++ families</h2>
+          <ul>
+            <li>Bounds and length checks.</li>
+            <li>Null dereference and error-path cleanup.</li>
+            <li>Double-free, missing release, parser/input-validation rules.</li>
+            <li>Each task declares `rule_family` and `rule_id`.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Imbalance accepted</div>
+          <h2>Negatives are candidates</h2>
+          <ul>
+            <li>No artificial global vulnerable/non-vulnerable balance.</li>
+            <li>Use same-task hard negatives, checker PASS rows, and UNKNOWN rows.</li>
+            <li>Train pairwise/listwise ranking with sampling or weights.</li>
+            <li>Report top-k localization and UNKNOWN calibration, not balanced accuracy.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Decision: candidate-ranking data is naturally imbalanced and task grouped.</span>
+        <span>Balancing binary classes would distort the vulnerability-research workflow.</span>
+      </div>
+
+      <footer>
+        <span>Scope and imbalance</span>
+        <span>First rule family: Linux object lifetime; architecture remains multi-family</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Dynamic oracle source transformation">
+      <header>
+        <div>
+          <div class="kicker">Input Type A</div>
+          <h1>Dynamic-oracle source becomes strong task instances</h1>
+        </div>
+        <div class="tag">Magma / OSS-Fuzz / syzkaller-style</div>
+      </header>
+
+      <div class="transform">
+        <div class="stack">
+          <div class="mini good">
+            <strong>Raw input package</strong>
+            <span>Project snapshot, failing input, crash stack, sanitizer output, build/test command.</span>
+            <pre>project: libfoo
+pre_patch: abc123
+oracle: ASan crash
+cmd: ./repro poc.bin
+output: heap-buffer-overflow</pre>
+          </div>
+          <div class="mini">
+            <strong>Candidate generation</strong>
+            <span>Crash frame, touched files, same function, same file hard negatives, CodeQL path neighbors.</span>
+          </div>
+          <div class="mini">
+            <strong>Deterministic preprocessing</strong>
+            <span>Parse crash stack, patch metadata, build/test metadata, and source anchors into auditable fields.</span>
+          </div>
+        </div>
+
+        <div class="arrow">-></div>
+
+        <div class="stack">
+          <div class="mini good">
+            <strong>`task_instances.jsonl`</strong>
+            <span>One row per source snapshot and oracle package.</span>
+            <pre>{"task_id":"T1","oracle.type":"asan",
+"pre_patch_result":"FAIL",
+"post_patch_result":"PASS|UNKNOWN",
+"split":"train|validation|test"}</pre>
+          </div>
+          <div class="mini good">
+            <strong>`candidate_locations.jsonl`</strong>
+            <span>Many rows per task, rooted in file/function/line candidates.</span>
+            <pre>{"task_id":"T1","file":"png.c",
+"function":"ReadImage",
+"line_start":197,"origin":["crash_stack"]}</pre>
+          </div>
+          <div class="mini good">
+            <strong>`labels.jsonl`</strong>
+            <span>Strong only when the candidate is tied to reproduced oracle evidence.</span>
+            <pre>{"candidate_id":"C1",
+"label_strength":"dynamic",
+"label_value":"root_cause|non_root_cause|UNKNOWN"}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="note">
+        <span>This is the safest first seed: it has executable behavior, not only historical labels.</span>
+        <span>Patch hunks can guide localization but do not replace the oracle.</span>
+      </div>
+
+      <footer>
+        <span>Strong source family</span>
+        <span>Best first path to trainable labels</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="CodeQL checker source transformation">
+      <header>
+        <div>
+          <div class="kicker">Input Type B</div>
+          <h1>CodeQL/checker source becomes conditional truth</h1>
+        </div>
+        <div class="tag">Static analyzer grounded</div>
+      </header>
+
+      <div class="transform">
+        <div class="stack">
+          <div class="mini">
+            <strong>Raw input package</strong>
+            <span>Source snapshot, CodeQL database, query suite, normalized fact schema, rule definition.</span>
+            <pre>query: lifetime/ref_release_after_publish.ql
+fact: REF_EVENT, ASYNC_EVENT, ALIAS_CANDIDATE
+rule: missing_cancel_before_destroy</pre>
+          </div>
+          <div class="mini good">
+            <strong>Checker result</strong>
+            <span>Rule runs over facts and emits PASS / FAIL / UNKNOWN with limitations.</span>
+          </div>
+          <div class="mini warn">
+            <strong>Uncertainty is preserved</strong>
+            <span>If aliasing, callgraph, or object identity is incomplete, label is UNKNOWN.</span>
+          </div>
+        </div>
+
+        <div class="arrow">-></div>
+
+        <div class="stack">
+          <div class="mini good">
+            <strong>`codeql_facts.jsonl` or fact IDs</strong>
+            <span>Facts are source-anchored and reusable across candidates.</span>
+            <pre>{"fact_id":"F7","kind":"REF_EVENT",
+"file":"driver.c","line_start":88,
+"confidence":"HIGH"}</pre>
+          </div>
+          <div class="mini good">
+            <strong>`candidate_locations.jsonl`</strong>
+            <span>Candidate rows link to fact IDs and rule context.</span>
+            <pre>{"candidate_id":"C9",
+"codeql_fact_ids":["F7","F8"],
+"candidate_origin":["codeql_path"]}</pre>
+          </div>
+          <div class="mini good">
+            <strong>`labels.jsonl`</strong>
+            <span>Conditional label states exactly which checker produced it.</span>
+            <pre>{"candidate_id":"C9",
+"label_strength":"codeql_conditional",
+"label_value":"FAIL|PASS|UNKNOWN",
+"rule_id":"missing_cancel_before_destroy"}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="note">
+        <span>CodeQL is not a full safety proof; it is conditional truth under explicit facts and rules.</span>
+        <span>The model learns to rank candidates backed by facts, not regex matches.</span>
+      </div>
+
+      <footer>
+        <span>Conditional source family</span>
+        <span>E023/E024 turn facts into PASS / FAIL / UNKNOWN</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Patch advisory source transformation">
+      <header>
+        <div>
+          <div class="kicker">Input Type C</div>
+          <h1>Patch/advisory sources generate candidates, not final truth</h1>
+        </div>
+        <div class="tag">CVEfixes / OSV / MoreFixes / GHSA-style</div>
+      </header>
+
+      <div class="transform">
+        <div class="stack">
+          <div class="mini warn">
+            <strong>Raw input package</strong>
+            <span>Advisory text, affected package, fix commit, patch hunk, changed files, optional CWE/CVE metadata.</span>
+            <pre>cve: CVE-XXXX-YYYY
+fix_commit: def456
+files: ["parser.c"]
+hunk: if (len > limit) return error;</pre>
+          </div>
+          <div class="mini warn">
+            <strong>Candidate generation</strong>
+            <span>Patch lines, surrounding functions, caller/callee neighbors, same API hard negatives.</span>
+          </div>
+          <div class="mini bad">
+            <strong>Rejected shortcut</strong>
+            <span>Do not mark all pre-patch functions vulnerable. Do not make patch label strong by itself.</span>
+          </div>
+        </div>
+
+        <div class="arrow">-></div>
+
+        <div class="stack">
+          <div class="mini warn">
+            <strong>`task_instances.jsonl`</strong>
+            <span>Patch/advisory metadata goes in provenance and training-only context where needed.</span>
+            <pre>{"task_id":"Tpatch1",
+"source":"OSV|CVEfixes|MoreFixes|GHSA",
+"oracle.type":"patch_confirmed|UNKNOWN"}</pre>
+          </div>
+          <div class="mini warn">
+            <strong>`candidate_locations.jsonl`</strong>
+            <span>Patch hunk candidates and hard negatives are explicit origins.</span>
+            <pre>{"candidate_id":"Cpatch1",
+"origin":["patch_hunk","same_file_hard_negative"]}</pre>
+          </div>
+          <div class="mini warn">
+            <strong>`labels.jsonl`</strong>
+            <span>Weak unless tied to checker/oracle or concrete before/after evidence.</span>
+            <pre>{"candidate_id":"Cpatch1",
+"label_strength":"weak|patch_confirmed",
+"limitations":["no reproducer yet"]}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="note">
+        <span>Patch/advisory sources are useful for scale and hard negatives.</span>
+        <span>They become training truth only after checker/oracle/evidence upgrades.</span>
+      </div>
+
+      <footer>
+        <span>Weak source family</span>
+        <span>Candidate generation first; truth upgrade later</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Normalized VulnSignal form">
+      <header>
+        <div>
+          <div class="kicker">Transformation Target</div>
+          <h1>All source families normalize into the same VulnSignal form</h1>
+        </div>
+        <div class="tag">Canonical files</div>
+      </header>
+
+      <div class="source-map">
+        <article class="source-card">
+          <div class="pill">1</div>
+          <h2>task_instances.jsonl</h2>
+          <p>One row per source snapshot and evidence package.</p>
+          <ul>
+            <li>project, repo, commit</li>
+            <li>build/test/oracle metadata</li>
+            <li>input availability at inference</li>
+            <li>split and split_policy</li>
+          </ul>
+          <div class="pill">Task-level</div>
+        </article>
+
+        <article class="source-card">
+          <div class="pill">2</div>
+          <h2>candidate_locations.jsonl</h2>
+          <p>Many candidate rows per task; this is the ranking unit.</p>
+          <ul>
+            <li>file/function/line range</li>
+            <li>source slice</li>
+            <li>candidate origin</li>
+            <li>linked fact IDs</li>
+          </ul>
+          <div class="pill">Model input</div>
+        </article>
+
+        <article class="source-card strong">
+          <div class="pill good">3</div>
+          <h2>labels.jsonl</h2>
+          <p>Label strength is explicit and never collapsed.</p>
+          <ul>
+            <li>dynamic</li>
+            <li>codeql_conditional</li>
+            <li>patch_confirmed</li>
+            <li>weak or UNKNOWN</li>
+          </ul>
+          <div class="pill good">Trust layer</div>
+        </article>
+
+        <article class="source-card conditional">
+          <div class="pill good">4</div>
+          <h2>fact store</h2>
+          <p>CodeQL/checker facts are linked, not buried in text.</p>
+          <ul>
+            <li>fact_id</li>
+            <li>query_name</li>
+            <li>file/function/line</li>
+            <li>limitations</li>
+          </ul>
+          <div class="pill good">Semantic backbone</div>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Train the ranker on normalized candidate rows, with label strength and provenance visible.</span>
+        <span>Never merge strong, conditional, weak, and UNKNOWN into one vague vulnerable label.</span>
+      </div>
+
+      <footer>
+        <span>VulnSignal canonical form</span>
+        <span>Everything becomes candidate ranking with explicit trust</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Preprocess data architecture">
+      <header>
+        <div>
+          <div class="kicker">Architecture 1</div>
+          <h1>Pre-process raw sources into reproducible task packages</h1>
+        </div>
+        <div class="tag">Data intake</div>
+      </header>
+
+      <div class="arch-wide">
+        <div class="pipeline">
+          <div class="pipe-step good">
+            <div class="num">1</div>
+            <div>
+              <strong>Ingest real source snapshots</strong>
+              <span>Repository URL/path, commit IDs, affected files, build/test metadata, patch or crash context.</span>
+            </div>
+          </div>
+          <div class="pipe-step good">
+            <div class="num">2</div>
+            <div>
+              <strong>Capture oracle/checker assets</strong>
+              <span>Reproducer, sanitizer output, fuzz input, CodeQL database metadata, rule definitions, or explicit missing-oracle status.</span>
+            </div>
+          </div>
+          <div class="pipe-step">
+            <div class="num">3</div>
+            <div>
+              <strong>Generate candidate windows</strong>
+              <span>Crash frames, patch hunks, CodeQL path nodes, callgraph neighbors, same-file hard negatives.</span>
+            </div>
+          </div>
+          <div class="pipe-step warn">
+            <div class="num">4</div>
+            <div>
+              <strong>Record uncertainty early</strong>
+              <span>Missing build, unavailable source, partial oracle, unresolved object identity, or incomplete CodeQL facts becomes UNKNOWN metadata.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="mini good">
+            <strong>Output: raw task package</strong>
+            <span>Everything needed to reproduce the evidence trail or explain why it is incomplete.</span>
+            <pre>{"task_id":"T...",
+"source_snapshot":"repo@commit",
+"oracle_assets":["asan_log","repro"],
+"candidate_seed_origins":["crash_stack","patch_hunk"]}</pre>
+          </div>
+          <div class="mini warn">
+            <strong>Trust rule</strong>
+            <span>Task packaging is not truth. Oracle/checker evidence or explicit UNKNOWN determines label status.</span>
+          </div>
+          <div class="mini">
+            <strong>VulnSignal boundary</strong>
+            <span>No model training and no vulnerability claim happens during preprocessing.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="note">
+        <span>Preprocessing makes source tasks reproducible and auditable.</span>
+        <span>The output is evidence packaging, not labels by assertion.</span>
+      </div>
+
+      <footer>
+        <span>E022 intake architecture</span>
+        <span>Real source packages before model work</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Clean normalize architecture">
+      <header>
+        <div>
+          <div class="kicker">Architecture 2</div>
+          <h1>Clean and normalize into candidate-ranking records</h1>
+        </div>
+        <div class="tag">Canonicalization</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane">
+          <div class="stage">Clean</div>
+          <h2>Deduplicate and anchor</h2>
+          <ul>
+            <li>Canonical repo and commit identity.</li>
+            <li>Stable file/function/line ranges.</li>
+            <li>Patch hunk and crash-frame anchoring.</li>
+            <li>Source slices bounded for review.</li>
+          </ul>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">Normalize</div>
+          <h2>Attach semantic facts</h2>
+          <ul>
+            <li>CodeQL fact IDs and query names.</li>
+            <li>Lifecycle/security event schema.</li>
+            <li>Object, call, path, source/sink facts.</li>
+            <li>Limitations when facts are partial.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Separate labels</div>
+          <h2>Preserve trust layer</h2>
+          <ul>
+            <li>Dynamic oracle labels.</li>
+            <li>CodeQL conditional PASS / FAIL / UNKNOWN.</li>
+            <li>Patch-confirmed evidence-tied weak labels.</li>
+            <li>Human review notes as review signal only.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="arch">
+        <article class="lane">
+          <div class="stage">task_instances.jsonl</div>
+          <h2>Task-level record</h2>
+          <pre>{"task_id":"T1",
+"split":"train|validation|test|heldout",
+"oracle":{"type":"asan|codeql_rule|UNKNOWN"}}</pre>
+        </article>
+
+        <article class="lane">
+          <div class="stage">candidate_locations.jsonl</div>
+          <h2>Ranking unit</h2>
+          <pre>{"candidate_id":"C1",
+"task_id":"T1",
+"file":"x.c","line_start":42,
+"codeql_fact_ids":["F1"]}</pre>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">labels.jsonl</div>
+          <h2>Truth/provenance</h2>
+          <pre>{"candidate_id":"C1",
+"label_strength":"dynamic|codeql_conditional|weak",
+"label_value":"root_cause|PASS|FAIL|UNKNOWN"}</pre>
+        </article>
+      </div>
+
+      <footer>
+        <span>Normalization architecture</span>
+        <span>No collapse into generic vulnerable/non-vulnerable labels</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Data consumption contract">
+      <header>
+        <div>
+          <div class="kicker">Data Contract</div>
+          <h1>This is the fixed v0 contract: one task, many candidates, explicit trust</h1>
+        </div>
+        <div class="tag">Mandatory</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">task_instances.jsonl</div>
+          <h2>Required fields</h2>
+          <ul>
+            <li>`task_id`, `source_family`, `project`, `repo_url`, `snapshot_commit`.</li>
+            <li>`build_command`, `test_command`, environment image or setup status.</li>
+            <li>`oracle.type`, `pre_patch_result`, `post_patch_result`, `split`, `split_policy`.</li>
+          </ul>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">candidate_locations.jsonl</div>
+          <h2>Required fields</h2>
+          <ul>
+            <li>`candidate_id`, `task_id`, `file`, `function`, `line_start`, `line_end`.</li>
+            <li>`candidate_origin`: crash stack, CodeQL path, patch hunk, callgraph neighbor, hard negative.</li>
+            <li>`source_slice_ref`, `codeql_fact_ids`, `rule_ids`, `available_at_inference`.</li>
+          </ul>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">labels.jsonl</div>
+          <h2>Required fields</h2>
+          <ul>
+            <li>`candidate_id`, `label_value`, `label_strength`, `label_source`, `evidence_refs`.</li>
+            <li>`rule_result`: PASS / FAIL / UNKNOWN.</li>
+            <li>`root_cause_relevance`: positive / negative / UNKNOWN.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="arch">
+        <article class="lane">
+          <div class="stage">Example task</div>
+          <h2>Dynamic oracle row</h2>
+          <pre>{"task_id":"T1",
+"source_family":"dynamic_oracle",
+"snapshot_commit":"abc123",
+"oracle":{"type":"asan","pre_patch_result":"FAIL"},
+"split":"train"}</pre>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">Example candidate</div>
+          <h2>Ranking unit</h2>
+          <pre>{"candidate_id":"C7",
+"task_id":"T1",
+"file":"parser.c",
+"function":"parse_chunk",
+"line_start":210,
+"candidate_origin":["crash_stack","patch_hunk"]}</pre>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Example label</div>
+          <h2>Trust is explicit</h2>
+          <pre>{"candidate_id":"C7",
+"root_cause_relevance":"positive|negative|UNKNOWN",
+"rule_result":"PASS|FAIL|UNKNOWN",
+"label_strength":"dynamic|codeql_conditional|weak",
+"evidence_refs":["asan_log","codeql_fact:F3"]}</pre>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Decision: no row is admitted without source_family, split policy, candidate origin, label strength, and evidence refs.</span>
+        <span>Rejected shape: single code segment -> vulnerable/non-vulnerable.</span>
+      </div>
+
+      <footer>
+        <span>Consumption contract</span>
+        <span>Rows are candidate locations; training/evaluation groups them by task</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Plain English task and candidate definitions">
+      <header>
+        <div>
+          <div class="kicker">Plain English</div>
+          <h1>A task is one investigation; candidates are places to inspect inside it</h1>
+        </div>
+        <div class="tag">Definitions</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Task</div>
+          <h2>One vulnerability-research case</h2>
+          <ul>
+            <li>A real project at one source snapshot.</li>
+            <li>A concrete rule, crash, bug report, advisory, or checker question.</li>
+            <li>Enough build/test/checker context to ask where a reviewer should look first.</li>
+            <li>Example: libxml2 at commit X has this parser crash; rank likely root-cause locations.</li>
+          </ul>
+        </article>
+
+        <article class="lane">
+          <div class="stage">Candidate location</div>
+          <h2>One place the model may rank</h2>
+          <ul>
+            <li>A file/function/line window inside the task's source snapshot.</li>
+            <li>Generated from crash frames, patch hunks, CodeQL paths, callgraph neighbors, or hard negatives.</li>
+            <li>Not a mutated source variant and not generated code.</li>
+            <li>We do not create many alternate programs; we create many pointers to existing code regions.</li>
+            <li>It can be likely root cause, not root cause, PASS, FAIL, weak, or UNKNOWN.</li>
+            <li>20,000 candidates means 20,000 places to rank, not 20,000 vulnerabilities.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Training item</div>
+          <h2>Rank within the task</h2>
+          <ul>
+            <li>The ranker receives all candidates for one task as a grouped list.</li>
+            <li>It learns which locations deserve attention before others.</li>
+            <li>Labels and evidence train ranking order and uncertainty.</li>
+            <li>No global vulnerable/non-vulnerable class balancing is required.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Plain target: 300 investigations, each with many existing code locations to inspect.</span>
+        <span>The model ranks locations; mutation/test generation is optional follow-up guidance, not the dataset row.</span>
+      </div>
+
+      <footer>
+        <span>Task vs candidate</span>
+        <span>One case -> many candidate file/function/line windows</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Candidate generation graphic">
+      <header>
+        <div>
+          <div class="kicker">Candidate Generation</div>
+          <h1>One task expands into a review queue of existing code locations</h1>
+        </div>
+        <div class="tag">Graphic</div>
+      </header>
+
+      <div class="candidate-map">
+        <article class="lane good">
+          <div class="stage">Original dataset record</div>
+          <h2>One task</h2>
+          <ul>
+            <li>Source snapshot at one commit.</li>
+            <li>Crash/reproducer, checker rule, patch, or advisory metadata.</li>
+            <li>Build/test/checker context when available.</li>
+            <li>Example: OSS-Fuzz issue or CodeQL lifetime-rule task.</li>
+          </ul>
+          <pre>{"task_id":"T1",
+"source_family":"dynamic_oracle",
+"project":"libxml2",
+"snapshot":"repo@abc123"}</pre>
+        </article>
+
+        <section class="bucket-list" aria-label="candidate buckets">
+          <div class="bucket good"><strong>Crash stack frame lines</strong><span>0-3</span></div>
+          <div class="bucket good"><strong>Patch hunk windows</strong><span>0-5</span></div>
+          <div class="bucket"><strong>Same-function nearby windows</strong><span>5-10</span></div>
+          <div class="bucket"><strong>Same-file related functions</strong><span>10-20</span></div>
+          <div class="bucket good"><strong>CodeQL path nodes / checker hits</strong><span>0-10</span></div>
+          <div class="bucket"><strong>Callgraph or dataflow neighbors</strong><span>10-15</span></div>
+          <div class="bucket warn"><strong>Hard negatives near evidence</strong><span>10+</span></div>
+        </section>
+
+        <article class="lane warn">
+          <div class="stage">Candidate rows</div>
+          <h2>Many existing locations</h2>
+          <ul>
+            <li>Each row points to an existing file/function/line window.</li>
+            <li>Counts vary by source family and available evidence.</li>
+            <li>Missing evidence means no bucket, or an explicit UNKNOWN label.</li>
+            <li>Typical task target: 40-100 candidates, not guaranteed bucket coverage.</li>
+          </ul>
+          <pre>{"candidate_id":"C7",
+"task_id":"T1",
+"file":"parser.c",
+"function":"parse_chunk",
+"line_start":210}</pre>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>These candidates are generated from the pre-existing dataset artifacts plus CodeQL/checker analysis.</span>
+        <span>We do not assume every task has crash, patch, CodeQL, and callgraph evidence.</span>
+      </div>
+
+      <footer>
+        <span>One task -> many candidate rows</span>
+        <span>Evidence-dependent buckets, not mandatory fields</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Inference and evaluation input contract">
+      <header>
+        <div>
+          <div class="kicker">Test-Time Contract</div>
+          <h1>New cases need inference features; labels and fixes stay hidden for scoring</h1>
+        </div>
+        <div class="tag">Inference vs evaluation</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Required at inference</div>
+          <h2>What the model may see</h2>
+          <ul>
+            <li>Source snapshot for the target project/version.</li>
+            <li>Task brief, rule family, crash/advisory text, or checker question when available.</li>
+            <li>Candidate rows: file/function/line windows generated automatically before ranking.</li>
+            <li>Source windows: the actual code snippet around each candidate row.</li>
+            <li>CodeQL/checker fact rows only for the checker-grounded/fact-view model.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Optional / ablation</div>
+          <h2>Source-only mode</h2>
+          <ul>
+            <li>Allowed as a baseline or fallback.</li>
+            <li>Uses source snapshot plus learned or rule-guided candidate proposal.</li>
+            <li>No CodeQL/fact view, no crash oracle, no patch evidence.</li>
+            <li>Report separately as `source_only`, not as the main VulnSignal result.</li>
+          </ul>
+        </article>
+
+        <article class="lane bad">
+          <div class="stage">Evaluation-only</div>
+          <h2>Hidden from the model</h2>
+          <ul>
+            <li>Ground-truth labels and root-cause location.</li>
+            <li>Patch diff and fixed source.</li>
+            <li>Oracle result, post-patch behavior, and reproduced/fixed status.</li>
+            <li>Label source or evidence fields that directly reveal the answer.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>If the main model uses CodeQL/fact features, test cases must provide the same feature view.</span>
+        <span>Otherwise it is a source-only ablation, not the primary checker-grounded evaluation.</span>
+      </div>
+
+      <footer>
+        <span>New-case contract</span>
+        <span>Inference features in; truth held out for scoring</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Inference pipeline requirement">
+      <header>
+        <div>
+          <div class="kicker">Inference Pipeline</div>
+          <h1>At test time, source code must pass through an evidence-generation pipeline</h1>
+        </div>
+        <div class="tag">Required build</div>
+      </header>
+
+      <div class="flow">
+        <div class="step">
+          <div class="num">1</div>
+          <strong>Source Snapshot</strong>
+          <ul>
+            <li>Target repo, commit, files, build metadata when available.</li>
+            <li>No fixed source or hidden label fields.</li>
+          </ul>
+        </div>
+
+        <div class="step">
+          <div class="num">2</div>
+          <strong>Candidate Generator</strong>
+          <ul>
+            <li>Create file/function/line candidate rows automatically.</li>
+            <li>Use source index, task context, learned proposal, checker paths, or crash/advisory anchors.</li>
+          </ul>
+        </div>
+
+        <div class="step checker">
+          <div class="num">3</div>
+          <strong>Evidence Builders</strong>
+          <ul>
+            <li>Extract source windows.</li>
+            <li>Run CodeQL/checkers if this is the main checker-grounded model.</li>
+            <li>Generate optional agent views.</li>
+          </ul>
+        </div>
+
+        <div class="step llm">
+          <div class="num">4</div>
+          <strong>Ranker</strong>
+          <ul>
+            <li>Rank candidates within the task.</li>
+            <li>Predict likely rule, object, evidence, and uncertainty.</li>
+          </ul>
+        </div>
+
+        <div class="step audit">
+          <div class="num">5</div>
+          <strong>Review Packet</strong>
+          <ul>
+            <li>Output top-k source locations and evidence packet.</li>
+            <li>Checker result may be PASS / FAIL / UNKNOWN if a checker ran.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note">
+        <span>Build requirement: inference is not raw source-code-in, answer-out.</span>
+        <span>The runtime pipeline creates candidates and evidence; labels remain hidden unless a checker/oracle is executed.</span>
+      </div>
+
+      <footer>
+        <span>Inference architecture</span>
+        <span>source -> candidates -> evidence -> ranking -> review queue</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Source-only LLM-assisted track">
+      <header>
+        <div>
+          <div class="kicker">Model Track Decision</div>
+          <h1>Source-only plus language-model assistance is useful, but it is a different claim</h1>
+        </div>
+        <div class="tag">No overclaim</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Practical track</div>
+          <h2>Source-only assistant</h2>
+          <ul>
+            <li>Input: source snapshot, task brief, generated source windows.</li>
+            <li>Model: neural source encoder or language-model-assisted ranker.</li>
+            <li>Output: ranked source locations and explanation draft.</li>
+            <li>Useful for triage and reviewer productivity.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Missing evidence view</div>
+          <h2>What it cannot claim alone</h2>
+          <ul>
+            <li>No CodeQL/fact-path grounding.</li>
+            <li>No checker-backed PASS / FAIL / UNKNOWN unless a checker is run separately.</li>
+            <li>No final vulnerability truth from source text or language-model agreement.</li>
+            <li>No replacement for oracle/checker validation.</li>
+          </ul>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">VulnSignal main track</div>
+          <h2>Checker-grounded ranker</h2>
+          <ul>
+            <li>Input: source windows plus CodeQL/checker facts when available.</li>
+            <li>Model learns over source context and structured evidence.</li>
+            <li>Labels come from dynamic oracle, checker result, weak provenance, or UNKNOWN.</li>
+            <li>Language models may assist explanation, not truth.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Decision: source-only can be an important v0 baseline or assistant track.</span>
+        <span>The repository claim remains stronger only when checker/oracle evidence validates the ranking target.</span>
+      </div>
+
+      <footer>
+        <span>Model positioning</span>
+        <span>Deep learning can rank; checker/oracle evidence grounds trust</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="LLM agent harness auxiliary data">
+      <header>
+        <div>
+          <div class="kicker">LLM-Agent Harness</div>
+          <h1>Agents may generate auxiliary views from source, but not final truth</h1>
+        </div>
+        <div class="tag">Allowed pipeline</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Allowed generated data</div>
+          <h2>Inference aids</h2>
+          <ul>
+            <li>Candidate function summaries and suspicious-code rationales.</li>
+            <li>Likely rule-family hypotheses and affected-object guesses.</li>
+            <li>Call-chain notes, API-use summaries, and review questions.</li>
+            <li>Proposed tests, fuzz targets, or mutation directions.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">How consumed</div>
+          <h2>Auxiliary features</h2>
+          <ul>
+            <li>Stored as `agent_views.jsonl` linked to `task_id` and `candidate_id`.</li>
+            <li>May feed reranking, explanation, or reviewer triage.</li>
+            <li>Must be separated from labels and oracle/checker evidence.</li>
+            <li>Must record prompt, model, timestamp, and source inputs for reproducibility.</li>
+          </ul>
+        </article>
+
+        <article class="lane bad">
+          <div class="stage">Blocked interpretation</div>
+          <h2>No truth from agents</h2>
+          <ul>
+            <li>No CodeQL/fact-path grounding unless a checker pipeline creates it.</li>
+            <li>No checker-backed PASS / FAIL / UNKNOWN unless a checker is run separately.</li>
+            <li>No final vulnerability truth from source text or language-model agreement.</li>
+            <li>No replacement for oracle/checker validation.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Decision: multi-agent pipelines may create extra inference views, not labels.</span>
+        <span>Agent-generated data is useful context; checker/oracle evidence remains the trust layer.</span>
+      </div>
+
+      <footer>
+        <span>Agent harness boundary</span>
+        <span>Generate auxiliary features; validate with checker/oracle evidence</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Candidate windows and CodeQL facts explained">
+      <header>
+        <div>
+          <div class="kicker">Required Artifacts</div>
+          <h1>Candidate windows are code snippets; CodeQL facts are structured evidence</h1>
+        </div>
+        <div class="tag">Concrete inputs</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">candidate_locations.jsonl</div>
+          <h2>What the pipeline must create</h2>
+          <ul>
+            <li>Before ranking, the system enumerates existing source locations worth inspecting.</li>
+            <li>Each row stores task ID, file, function, line range, origin, and source slice reference.</li>
+            <li>This is the review queue the model sorts.</li>
+            <li>Humans may audit the queue, but they are not expected to hand-create it.</li>
+          </ul>
+          <pre>{"candidate_id":"C7",
+"task_id":"T1",
+"file":"parser.c",
+"function":"parse_chunk",
+"line_start":210,
+"line_end":235}</pre>
+        </article>
+
+        <article class="lane">
+          <div class="stage">source window</div>
+          <h2>The code snippet for that row</h2>
+          <ul>
+            <li>Small bounded code region around the candidate lines.</li>
+            <li>Used by the source encoder.</li>
+            <li>Contains current source only, not fixed source or hidden label text.</li>
+          </ul>
+          <pre>{"candidate_id":"C7",
+"tokens":["if","len",">","max",
+          "goto","err"],
+"window":"parser.c:200-245"}</pre>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">codeql_facts.jsonl</div>
+          <h2>Needed for fact-view model</h2>
+          <ul>
+            <li>Structured facts from CodeQL/checker analysis: calls, dataflow, object IDs, paths, rule hits.</li>
+            <li>Attached to candidate rows by fact IDs and source anchors.</li>
+            <li>If absent, run source-only baseline; do not call it checker-grounded.</li>
+          </ul>
+          <pre>{"fact_id":"F12",
+"candidate_id":"C7",
+"kind":"dataflow_edge",
+"src":"input_len",
+"dst":"memcpy_size"}</pre>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Yes: candidate rows and source windows are required, and the pipeline should generate them.</span>
+        <span>CodeQL facts are required for the main checker-grounded model, optional only for source-only ablation.</span>
+      </div>
+
+      <footer>
+        <span>Concrete artifacts</span>
+        <span>candidate row -> source snippet -> optional fact rows</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Automation boundary">
+      <header>
+        <div>
+          <div class="kicker">Automation Boundary</div>
+          <h1>Candidate generation can be automated; dataset truth cannot be hand-waved</h1>
+        </div>
+        <div class="tag">No overclaim</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Automate</div>
+          <h2>Candidate proposal</h2>
+          <ul>
+            <li>Generate file/function/line windows from crash stacks, patch hunks, CodeQL paths, callgraph neighbors, and hard negatives.</li>
+            <li>Extract bounded source windows and attach fact IDs.</li>
+            <li>Rank candidates within each task.</li>
+            <li>Produce UNKNOWN when evidence is incomplete.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Needs engineering review</div>
+          <h2>Dataset onboarding</h2>
+          <ul>
+            <li>Confirm source licenses, artifact hashes, and reproducibility constraints.</li>
+            <li>Fix or exclude broken builds and incomplete source snapshots.</li>
+            <li>Review CodeQL/checker rule definitions and limitations.</li>
+            <li>Audit samples for leakage and malformed candidate rows.</li>
+          </ul>
+        </article>
+
+        <article class="lane bad">
+          <div class="stage">Blocked claim</div>
+          <h2>No autonomous truth</h2>
+          <ul>
+            <li>The model does not decide vulnerability truth.</li>
+            <li>Advisory text and patch hunks do not become strong labels automatically.</li>
+            <li>Humans should not hand-create every candidate, but must audit the system and resolve ambiguous evidence.</li>
+            <li>Checker/oracle evidence, not agreement, decides label strength.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Realistic v0: automated proposal and ranking, audited dataset construction, checker/oracle-backed labels.</span>
+        <span>Unrealistic v0: source code in, trustworthy vulnerability dataset out with no human oversight.</span>
+      </div>
+
+      <footer>
+        <span>Automation claim</span>
+        <span>Automate candidate generation; audit dataset truth and leakage</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Human review budget">
+      <header>
+        <div>
+          <div class="kicker">Human Review Budget</div>
+          <h1>Reviewers audit the system, not every one of 20,000 candidate rows</h1>
+        </div>
+        <div class="tag">Scalable audit</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane bad">
+          <div class="stage">Blocked workflow</div>
+          <h2>No exhaustive manual validation</h2>
+          <ul>
+            <li>Do not ask humans to label every candidate location.</li>
+            <li>Do not require reviewers to inspect all 300 tasks deeply.</li>
+            <li>Do not use human opinion as final truth.</li>
+            <li>Do not hide missing proof behind reviewer agreement.</li>
+          </ul>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">Reviewer workload</div>
+          <h2>Bounded audit packets</h2>
+          <ul>
+            <li>Audit dataset-source admission and rule definitions.</li>
+            <li>Review top-k evidence packets per task, not all candidates.</li>
+            <li>Sample negatives, UNKNOWN rows, and low-ranked candidates for leakage and quality.</li>
+            <li>Escalate only ambiguous or high-impact rows.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Practical cap</div>
+          <h2>Human budget target</h2>
+          <ul>
+            <li>Per task: inspect top 3-5 ranked packets plus 1-2 sampled negatives.</li>
+            <li>Per 300-task v0: about 1,500-2,100 review packets, not 20,000 rows.</li>
+            <li>Use checker/oracle output for bulk labels.</li>
+            <li>Use disagreement and drift metrics to choose audit samples.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Human review is a quality-control layer, not the labeling engine.</span>
+        <span>Scale comes from checker/oracle labels, evidence packets, sampling, and UNKNOWN.</span>
+      </div>
+
+      <footer>
+        <span>Review design</span>
+        <span>Top-k audit + stratified sampling + escalation, not exhaustive labeling</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Initial dataset size target">
+      <header>
+        <div>
+          <div class="kicker">Initial Training Size</div>
+          <h1>300 tasks is a multi-family v0 target, not the first object-lifetime pilot</h1>
+        </div>
+        <div class="tag">v0 target</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Target scale</div>
+          <h2>Multi-family v0</h2>
+          <ul>
+            <li>300 tasks requires multiple C/C++ memory-safety families and multiple projects.</li>
+            <li>Object lifetime/refcount alone should be a smaller first pilot.</li>
+            <li>Hold out projects/rules/tasks for evaluation.</li>
+          </ul>
+          <pre>300 tasks
+x about 67 candidates/task
+= about 20,000 candidates</pre>
+        </article>
+
+        <article class="lane">
+          <div class="stage">Per-task candidate budget</div>
+          <h2>Where candidates come from</h2>
+          <ul>
+            <li>1-5 crash, checker, or patch-near high-evidence locations.</li>
+            <li>10-20 nearby same-function or same-file locations.</li>
+            <li>20-40 hard negatives in related code.</li>
+            <li>10-30 CodeQL path, callgraph, or dataflow neighbors.</li>
+          </ul>
+        </article>
+
+        <article class="lane bad">
+          <div class="stage">Blocked interpretation</div>
+          <h2>Not 20,000 bugs</h2>
+          <ul>
+            <li>Most candidate locations are negatives, weak, or UNKNOWN.</li>
+            <li>The dataset is intentionally imbalanced.</li>
+            <li>We measure top-k ranking and evidence quality.</li>
+            <li>We do not report binary vulnerable/non-vulnerable accuracy as the main result.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Object-lifetime pilot: 50-100 tasks and 5,000-10,000 candidates.</span>
+        <span>Multi-family v0: 300 tasks, 20,000 candidates, 100+ strong/conditional positive candidates.</span>
+      </div>
+
+      <footer>
+        <span>Dataset size gate</span>
+        <span>Candidate ranking scale, not vulnerability-count inflation</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Dataset feasibility reality check">
+      <header>
+        <div>
+          <div class="kicker">Feasibility Check</div>
+          <h1>Public sources support scale, but not 300 pure refcount tasks</h1>
+        </div>
+        <div class="tag">2026-05-16</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Observed public pools</div>
+          <h2>Enough broad memory-safety data</h2>
+          <ul>
+            <li>NVD exact `use after free`: 2,781 CVE descriptions.</li>
+            <li>NVD exact `use-after-free`: 3,826 CVE descriptions.</li>
+            <li>NVD exact `buffer overflow`: 18,706 CVE descriptions.</li>
+            <li>OSV lists large Linux and OSS-Fuzz ecosystems for source discovery.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Narrow family risk</div>
+          <h2>Refcount/lifetime is smaller</h2>
+          <ul>
+            <li>NVD keyword `refcount`: 630 CVE descriptions.</li>
+            <li>NVD exact `reference count`: 330 CVE descriptions.</li>
+            <li>Many records will lack usable source, reproducer, or precise root-cause evidence.</li>
+            <li>Do not promise 300 strong object-lifetime tasks from this alone.</li>
+          </ul>
+        </article>
+
+        <article class="lane bad">
+          <div class="stage">Decision</div>
+          <h2>Revise the milestone</h2>
+          <ul>
+            <li>First pilot: 50-100 object-lifetime/refcount tasks.</li>
+            <li>300-task target: object lifetime plus bounds, double-free, null/error-path families.</li>
+            <li>Advisory records are source discovery, not final training truth.</li>
+            <li>Task count depends on chosen source datasets and validation budget.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Conclusion: 20,000 candidate locations is plausible; 300 narrow lifetime tasks is not the right first promise.</span>
+        <span>Scale comes from multi-family C/C++ tasks plus CodeQL/checker generation.</span>
+      </div>
+
+      <footer>
+        <span>Feasibility gate</span>
+        <span>Do not inflate advisory counts into usable VulnSignal tasks</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Feature consumption views">
+      <header>
+        <div>
+          <div class="kicker">Data Consumption</div>
+          <h1>We choose the v0 model input now: source text + structured facts</h1>
+        </div>
+        <div class="tag">v0 decision</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Required view A</div>
+          <h2>Source and reports</h2>
+          <ul>
+            <li>Candidate source slice as code tokens.</li>
+            <li>Crash/sanitizer text if available at inference.</li>
+            <li>Task brief and rule description as bounded metadata text.</li>
+          </ul>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">Required view B</div>
+          <h2>Facts and labels</h2>
+          <ul>
+            <li>CodeQL fact IDs, kinds, paths, source anchors.</li>
+            <li>Lifecycle/security events and rule preconditions.</li>
+            <li>Label strength and limitations used for training policy, not as inference features.</li>
+          </ul>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">Required view C</div>
+          <h2>Task grouping</h2>
+          <ul>
+            <li>Model ranks candidates within each `task_id`.</li>
+            <li>Training uses candidate sets, not independent binary rows.</li>
+            <li>Evaluation reports top-k localization and UNKNOWN calibration.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="arch">
+        <article class="lane">
+          <div class="stage">Allowed metadata</div>
+          <h2>Small metadata features</h2>
+          <ul>
+            <li>Distance to crash frame or patch hunk.</li>
+            <li>Number of linked facts and rule hits.</li>
+            <li>Candidate origin flags and source availability.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Deferred v1+</div>
+          <h2>Graph model</h2>
+          <ul>
+            <li>Fact graph can be derived from v0 fields later.</li>
+            <li>Do not block E022/E026 on graph neural infrastructure.</li>
+            <li>Store enough IDs now so graph construction remains possible.</li>
+          </ul>
+        </article>
+
+        <article class="lane bad">
+          <div class="stage">Rejected v0 inputs</div>
+          <h2>No hidden label leakage</h2>
+          <ul>
+            <li>No fixed source in inference fields.</li>
+            <li>No patch diff as model input unless training-only ablation.</li>
+            <li>No label source as a shortcut feature.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Decision: v0 model = source-slice encoder + fact/path encoder + task-level ranking head.</span>
+        <span>Graph is a later representation upgrade, not a reason to delay dataset construction.</span>
+      </div>
+
+      <footer>
+        <span>Input representation</span>
+        <span>Source text + structured facts first; grouped ranking always</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Companion source representation diagrams">
+      <header>
+        <div>
+          <div class="kicker">Representation Diagrams</div>
+          <h1>Representation is multi-view candidate ranking, not one vague code blob</h1>
+        </div>
+        <div class="tag">Data format</div>
+      </header>
+
+      <div class="diagram-grid">
+        <article class="diagram-panel">
+          <div class="summary">
+            <h2>View A: bounded source sequence</h2>
+            <span>One deterministic token sequence per candidate location, not a repository-sized sequence.</span>
+          </div>
+          <pre>{"candidate_id":"C7",
+"view":"source_window",
+"tokens":["fn:foo","call:kref_get",
+          "field:bar.refcnt"],
+"line_span":[120,155]}</pre>
+          <ul>
+            <li>Consumed by source encoder as a bounded token sequence.</li>
+            <li>Grouped by `task_id`; never scored as an independent binary row.</li>
+            <li>Patch/fixed text is excluded unless an explicit training-only ablation says otherwise.</li>
+          </ul>
+          <a href="vulnsignal_data_structures_i_intake_contract.html">Open intake contract diagram</a>
+        </article>
+
+        <article class="diagram-panel">
+          <div class="summary">
+            <h2>View B: fact/path records</h2>
+            <span>CodeQL/checker output is a typed fact table plus edge/path records: graph-ready, consumed as facts first.</span>
+          </div>
+          <pre>{"fact_id":"F12",
+"candidate_id":"C7",
+"kind":"lifecycle_event",
+"predicate":"publish_after_release",
+"src":"call@foo:131",
+"dst":"free@foo:144"}</pre>
+          <ul>
+            <li>Consumed by fact/path encoder as typed records and path tokens.</li>
+            <li>Can become a graph later from `src`, `dst`, object IDs, and edge kinds.</li>
+            <li>Checker result is supervision/provenance, not an inference feature.</li>
+          </ul>
+          <a href="vulnsignal_data_structures_ii_representation_encoding.html">Open representation diagram</a>
+        </article>
+
+        <article class="diagram-panel">
+          <div class="summary">
+            <h2>View C: task-level candidate list</h2>
+            <span>The training item is a set/list of candidates for one task; ranking is pairwise or listwise inside that task.</span>
+          </div>
+          <pre>{"task_id":"T3",
+"candidates":["C1","C2","C7"],
+"labels":{"C7":"FAIL",
+          "C2":"UNKNOWN"},
+"split":"project_holdout"}</pre>
+          <ul>
+            <li>Consumed by ranking head as a candidate set, not a single long sequence.</li>
+            <li>Labels preserve dynamic, CodeQL conditional, weak, and UNKNOWN strength.</li>
+            <li>Metrics are top-k localization, evidence overlap, and UNKNOWN calibration.</li>
+          </ul>
+          <a href="vulnsignal_data_structures_iii_dataset_consumption.html">Open consumption diagram</a>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Decision: v0 is multi-view records plus grouped ranking; graph is a later derived view.</span>
+        <span>This blocks the single-code-segment to vulnerable-label framing.</span>
+      </div>
+
+      <footer>
+        <span>Representation contract</span>
+        <span>Source sequence + fact/path records + task candidate list</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Training architecture">
+      <header>
+        <div>
+          <div class="kicker">Architecture 3</div>
+          <h1>Train a multi-view candidate ranker after the dataset exists</h1>
+        </div>
+        <div class="tag">Model training</div>
+      </header>
+
+      <div class="arch-wide">
+        <div class="arch" style="grid-template-columns: 1fr 1fr;">
+          <article class="lane">
+            <div class="stage">View A</div>
+            <h2>Source slice encoder</h2>
+            <ul>
+              <li>Candidate function and line window.</li>
+              <li>Nearby caller/callee context.</li>
+              <li>Patch context only when allowed by split.</li>
+            </ul>
+          </article>
+
+          <article class="lane good">
+            <div class="stage">View B</div>
+            <h2>CodeQL/fact encoder</h2>
+            <ul>
+              <li>Fact tokens, paths, object events, and optional graph edges.</li>
+              <li>Rule preconditions and limitations.</li>
+              <li>Checker result used as supervision according to label policy.</li>
+            </ul>
+          </article>
+
+          <article class="lane">
+            <div class="stage">View C</div>
+            <h2>Context encoder</h2>
+            <ul>
+              <li>Crash stack or sanitizer report if available at inference.</li>
+              <li>Task brief and environment constraints.</li>
+              <li>Historical retrieval context as auxiliary evidence.</li>
+            </ul>
+          </article>
+
+          <article class="lane warn">
+            <div class="stage">Heads</div>
+            <h2>Predictions</h2>
+            <ul>
+              <li>Suspicious location rank.</li>
+              <li>Affected object and likely violated rule.</li>
+              <li>Evidence chain, test guidance, confidence / UNKNOWN.</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="stack">
+          <div class="mini good">
+            <strong>Training objective</strong>
+            <span>Pairwise/listwise rank candidate locations within each task; class balance is a sampling/weighting decision, not an assumption about reality.</span>
+          </div>
+          <div class="mini">
+            <strong>Baselines before neural claims</strong>
+            <span>Random, crash stack, source text, API tokens, CodeQL alert/path, checker-only ranking.</span>
+          </div>
+          <div class="mini bad">
+            <strong>Rejected shortcut</strong>
+            <span>No chat-LLM fine-tune as default, no reward model first, no vulnerable/non-vulnerable function classifier.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="note">
+        <span>The model proposes ranked vulnerability-research operations.</span>
+        <span>Checker/oracle evidence remains the trust layer.</span>
+      </div>
+
+      <footer>
+        <span>E026 model direction</span>
+        <span>Non-generative multi-view candidate ranker</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Deep learning architecture details">
+      <header>
+        <div>
+          <div class="kicker">Model Architecture Detail</div>
+          <h1>Deep learning design: view encoders, attention fusion, prediction heads, and losses</h1>
+        </div>
+        <div class="tag">Ranker internals</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane good">
+          <div class="stage">Embeddings</div>
+          <h2>View encoders</h2>
+          <ul>
+            <li>Source window encoder: code-token, line-position, and candidate-span embeddings.</li>
+            <li>Fact/path encoder: fact kind, predicate, object ID, edge type, and path-position embeddings.</li>
+            <li>Context encoder: task brief, crash/advisory text, and optional agent-view embeddings.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Fusion</div>
+          <h2>Cross-view attention</h2>
+          <ul>
+            <li>Build one candidate embedding from source, facts, context, and agent views.</li>
+            <li>Use cross-attention or gated fusion so missing views can be masked.</li>
+            <li>Keep labels, fixed source, and oracle outcomes out of inference features.</li>
+          </ul>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">Heads</div>
+          <h2>Predictions</h2>
+          <ul>
+            <li>Location rank score within each task.</li>
+            <li>Rule family and affected object.</li>
+            <li>Evidence fact selection and test/mutation guidance.</li>
+            <li>Confidence / UNKNOWN calibration.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="arch">
+        <article class="lane">
+          <div class="stage">Ranking loss</div>
+          <h2>Pairwise / listwise</h2>
+          <ul>
+            <li>Rank root-cause or checker-FAIL candidates above hard negatives and UNKNOWN where supported.</li>
+            <li>Group all comparisons by `task_id`.</li>
+            <li>Use task-balanced sampling rather than global class balancing.</li>
+          </ul>
+          <pre>L_pair = max(0, margin - s(pos) + s(neg))
+L_list = -log exp(s(pos)) / sum_c exp(s(c))</pre>
+        </article>
+
+        <article class="lane">
+          <div class="stage">Auxiliary losses</div>
+          <h2>Multi-task supervision</h2>
+          <ul>
+            <li>Rule/object classification cross-entropy.</li>
+            <li>Evidence selection binary cross-entropy over fact IDs.</li>
+            <li>Calibration loss for confidence and UNKNOWN.</li>
+          </ul>
+          <pre>L_aux = lambda_rule CE(rule)
+      + lambda_obj CE(object)
+      + lambda_ev BCE(facts)
+      + lambda_cal Calib(UNKNOWN)</pre>
+        </article>
+
+        <article class="lane bad">
+          <div class="stage">Trust boundary</div>
+          <h2>What losses do not prove</h2>
+          <ul>
+            <li>Deep learning predicts ranking and hypotheses.</li>
+            <li>It does not prove vulnerability truth.</li>
+            <li>Checker/oracle evidence remains the validation layer.</li>
+          </ul>
+        </article>
+      </div>
+
+      <footer>
+        <span>Model internals</span>
+        <span>L = L_rank + weighted auxiliary heads; all ranking grouped by task_id</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Evaluation architecture">
+      <header>
+        <div>
+          <div class="kicker">Architecture 4</div>
+          <h1>Evaluate on held-out tasks with checker/oracle-backed outcomes</h1>
+        </div>
+        <div class="tag">Validation and inference</div>
+      </header>
+
+      <div class="arch">
+        <article class="lane">
+          <div class="stage">Split design</div>
+          <h2>Prevent contamination</h2>
+          <ul>
+            <li>Project-disjoint, time-disjoint, and family-disjoint splits.</li>
+            <li>CyberGym-style tasks held out for inference/evaluation.</li>
+            <li>No fixed-source leakage into inference inputs.</li>
+          </ul>
+        </article>
+
+        <article class="lane good">
+          <div class="stage">Metrics</div>
+          <h2>Rank useful operations</h2>
+          <ul>
+            <li>Top-k root-cause localization.</li>
+            <li>Rule/hypothesis accuracy where checkable.</li>
+            <li>Evidence-chain overlap and UNKNOWN calibration.</li>
+            <li>Test/fuzz/mutation guidance usefulness.</li>
+          </ul>
+        </article>
+
+        <article class="lane warn">
+          <div class="stage">Validation loop</div>
+          <h2>Checker/oracle decides</h2>
+          <ul>
+            <li>Run CodeQL/lifecycle rule checker.</li>
+            <li>Run reproducer/fuzzer/sanitizer when available.</li>
+            <li>Human audit reviews hard cases but is not final truth alone.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="arch-wide">
+        <div class="stack">
+          <div class="mini good">
+            <strong>Model output</strong>
+            <span>Ranked candidates with affected object, likely rule, evidence facts, test guidance, confidence / UNKNOWN.</span>
+          </div>
+          <div class="mini">
+            <strong>Evaluation report</strong>
+            <span>Compare against text, crash-stack, CodeQL, checker-only, and retrieval baselines.</span>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="mini bad">
+            <strong>Do not claim</strong>
+            <span>No vulnerability discovery claim unless checker/oracle proof validates the specific candidate.</span>
+          </div>
+          <div class="mini warn">
+            <strong>UNKNOWN is useful</strong>
+            <span>If evidence is insufficient, calibrated abstention is better than false precision.</span>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <span>E027 evaluation direction</span>
+        <span>Held-out inference benchmark, not contaminated training data</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Dataset development flow">
+      <header>
+        <div>
+          <div class="kicker">VulnSignal Dataset Development</div>
+          <h1>Deterministic dataset construction, checker-grounded labels</h1>
+        </div>
+        <div class="tag">Flow view</div>
+      </header>
+
+      <div class="flow">
+        <article class="step">
+          <div class="num">1</div>
+          <strong>Task discovery</strong>
+          <ul>
+            <li>Real source snapshots</li>
+            <li>Patch/crash/reproducer context</li>
+            <li>Dataset manifest records provenance</li>
+          </ul>
+        </article>
+
+        <article class="step">
+          <div class="num">2</div>
+          <strong>Candidate locations</strong>
+          <ul>
+            <li>File/function/line ranges</li>
+            <li>Crash stack and patch neighborhoods</li>
+            <li>Hard negatives in same context</li>
+          </ul>
+        </article>
+
+        <article class="step checker">
+          <div class="num">3</div>
+          <strong>Semantic facts</strong>
+          <ul>
+            <li>CodeQL lifecycle/security facts</li>
+            <li>Object, call, flow, and rule evidence</li>
+            <li>UNKNOWN when facts are incomplete</li>
+          </ul>
+        </article>
+
+        <article class="step checker">
+          <div class="num">4</div>
+          <strong>Truth layer</strong>
+          <ul>
+            <li>Dynamic oracle where available</li>
+            <li>CodeQL-backed rule check</li>
+            <li>Evidence-tied patch confirmation</li>
+          </ul>
+        </article>
+
+        <article class="step audit">
+          <div class="num">5</div>
+          <strong>Evidence audit</strong>
+          <ul>
+            <li>Human checks package quality</li>
+            <li>No human opinion labels</li>
+            <li>Accept, reject, or mark UNKNOWN</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="note">
+        <span>Scripts build and route the dataset; analyzer/checker/oracle evidence creates the label.</span>
+        <span>Human loop confirms evidence completeness, not vulnerability truth by opinion.</span>
+      </div>
+
+      <footer>
+        <span>VulnSignal</span>
+        <span>E022 - Checker-Grounded Vulnerability Task Dataset Builder</span>
+      </footer>
+    </section>
+
+    <section class="slide" aria-label="Dataset record shape">
+      <header>
+        <div>
+          <div class="kicker">Dataset Shape</div>
+          <h1>Each training item is a task paired with a candidate location</h1>
+        </div>
+        <div class="tag">Record view</div>
+      </header>
+
+      <div class="dataset">
+        <article class="record">
+          <h2>(task_instance, candidate_location)</h2>
+          <div class="schema">
+            <div class="field">
+              <strong>Task instance</strong>
+              <span>Project, repo snapshot, source version, build/test metadata, crash or patch context.</span>
+            </div>
+            <div class="field">
+              <strong>Candidate location</strong>
+              <span>File, function, line range, source slice, origin, and hard-negative relationship.</span>
+            </div>
+            <div class="field">
+              <strong>Semantic facts</strong>
+              <span>CodeQL fact IDs, lifecycle events, dataflow/call paths, object identity evidence.</span>
+            </div>
+            <div class="field truth">
+              <strong>Trust layer</strong>
+              <span>Dynamic oracle, CodeQL conditional rule result, or patch-confirmed behavior with evidence.</span>
+            </div>
+            <div class="field unknown">
+              <strong>Label and uncertainty</strong>
+              <span>PASS / FAIL / UNKNOWN, root-cause relevance, rule hypothesis, confidence, limitations.</span>
+            </div>
+            <div class="field">
+              <strong>Split policy</strong>
+              <span>Train, validation, test, or held-out CyberGym-style evaluation with contamination controls.</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="shape">
+          <h2>What the model learns to rank</h2>
+          <div class="pillrow">
+            <span class="pill good">suspicious file/function/line</span>
+            <span class="pill good">affected object</span>
+            <span class="pill good">likely violated rule</span>
+            <span class="pill good">evidence chain</span>
+            <span class="pill good">test/fuzz guidance</span>
+            <span class="pill warn">confidence / UNKNOWN</span>
+          </div>
+
+          <div>
+            <h2>What is not ground truth</h2>
+            <div class="pillrow" style="margin-top: 12px;">
+              <span class="pill bad">LLM consensus alone</span>
+              <span class="pill bad">regex/custom parser flags alone</span>
+              <span class="pill bad">generic vulnerable label</span>
+              <span class="pill bad">historical patch label alone</span>
+              <span class="pill bad">human opinion label</span>
+            </div>
+          </div>
+
+          <ul>
+            <li>Rows can be useful even when the correct label is `UNKNOWN`.</li>
+            <li>Patch metadata may guide candidate generation but is not strong truth by itself.</li>
+            <li>CyberGym-style tasks are for held-out evaluation or schema design unless an uncontaminated split is explicit.</li>
+          </ul>
+        </article>
+      </div>
+
+      <footer>
+        <span>Primary model: non-generative multi-view candidate ranker</span>
+        <span>Checker/oracle validates; model proposes</span>
+      </footer>
+    </section>
+  </main>
+</body>
+</html>
