@@ -1,5 +1,6 @@
 SESSION_HANDOFF.md
 
 .tools/
+__pycache__/
 SESSION_HANDOFF.md
 *:Zone.Identifier

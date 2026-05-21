@@ -1,0 +1,7 @@
+db/
+db_indexed/
+db_compile_attempt/
+*.bqrs
+*.csv
+sources/
+compile_attempt.log

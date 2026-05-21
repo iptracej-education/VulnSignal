@@ -1,0 +1,20 @@
+{
+  "codeql_comparison": {
+    "task_count": 20,
+    "fixed_view_fact_tasks": 11,
+    "vulnerable_view_fact_tasks": 10,
+    "fixed_view_fact_rows": 98,
+    "vulnerable_view_fact_rows": 66,
+    "comparison_status_counts": {
+      "fixed_and_vulnerable_compared": 10,
+      "fixed_available_vulnerable_build_failed": 1,
+      "full_source_extraction_not_available": 9
+    }
+  },
+  "hard_negatives": {
+    "patch_candidate_count": 51,
+    "hard_negative_candidate_count": 100,
+    "combined_candidate_count": 151,
+    "hard_negative_policy": "weak ranking contrast only; not final non-vulnerable truth"
+  }
+}

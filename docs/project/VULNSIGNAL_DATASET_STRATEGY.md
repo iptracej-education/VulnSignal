@@ -240,11 +240,14 @@ Runtime pipeline:
 new source snapshot
   -> candidate generator
   -> source window extractor
-  -> CodeQL/checker fact builder, when using the tool-grounded model
+  -> tool fact builders, when using the tool-grounded model
+  -> view normalizer and missing-view masker
   -> optional agent-view generator
   -> candidate ranker
   -> top-k review packet
 ```
+
+The runtime pipeline should normalize each available view, not manually connect all views. The model input record should say that source window, AST/expression facts, lifecycle/API events, object identity facts, CFG/order facts, dataflow/alias facts, callback/async facts, and rule evidence belong to the same candidate. Fine-grained relationships among those views are learned by the model unless a tool explicitly emits a relationship for validation.
 
 Inference-time outputs:
 
@@ -287,6 +290,38 @@ Blocked source-only claim:
 - source-only result can replace dynamic oracle or checker evidence
 
 The project can use deep learning for source-based candidate ranking. The grounding requirement is about evidence and label trust, not about avoiding learned models.
+
+## Hypothesis and concept views
+
+When no tool-grounded evidence or public evidence is available, the dataset may include human-authored or LLM-assisted vulnerability hypotheses as weak concept views. These views can help the model compare a candidate location against a proposed rule, failure mode, or security concern, and they can guide follow-up checker, fuzzing, or review work.
+
+Allowed `vulnerability_concept_views.jsonl` sources:
+
+- rule or family descriptions written before seeing held-out labels
+- public advisory or benchmark descriptions allowed by split policy
+- human-authored hypotheses based only on inference-available source and task context
+- LLM-assisted hypotheses reviewed or accepted as hypothesis inputs, not evidence
+
+Required metadata:
+
+- `task_id`
+- optional `candidate_id`
+- `concept_source`: `rule_template`, `public_advisory`, `human_hypothesis`, `llm_assisted_hypothesis`, or `benchmark_description`
+- `concept_text`
+- `vulnerability_family`
+- `available_at_inference`
+- `evidence_strength`: `tool_grounded`, `public_context`, or `hypothesis_only`
+- source inputs used to create the concept
+- split and leakage policy
+
+Blocked interpretation:
+
+- a hypothesis description is not a label
+- a hypothesis description is not checker/oracle evidence
+- LLM agreement is not vulnerability truth
+- `hypothesis_only` concept views cannot promote weak labels to conditional or strong labels
+
+Hypothesis and concept views are useful for description-only exploratory ranking and for deciding which checks to build next. The main VulnSignal result remains tool-grounded when the claim requires validation.
 
 ## Multi-agent auxiliary-data harness
 

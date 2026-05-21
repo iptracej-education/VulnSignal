@@ -37,6 +37,8 @@ Recent agentic vulnerability-research systems and benchmarks, such as MDASH-styl
 
 Earlier object-lifetime work in the source repository showed a clear limitation: ranking code by rough labels, source-text patterns, lightweight object-flow signals, or agreement between language models does not prove that a bug exists. VulnSignal therefore requires each training example to point back to a real source version, a specific code location, machine-checkable facts when available, and validation evidence such as a checker result, crash, reproducer, fuzz test, or explicit `UNKNOWN` when the evidence is incomplete.
 
+Recent source-code representation work also shows that this project should not claim novelty from "source plus graph plus attention" alone. Systems such as CLeVeR use vulnerability descriptions, code/graph representations, representation refinement, and zero-shot-style matching to improve vulnerability representation learning. VulnSignal uses that lesson, but the main research direction is different: tool-grounded evidence is the primary semantic anchor for candidate ranking. Vulnerability-concept descriptions may be added as an auxiliary contrastive view, inspired by CLeVeR, to improve low-sample and family-focused ranking. These descriptions may also include human-authored or LLM-assisted hypotheses when no tool-grounded or public evidence is available, but they remain weak guidance rather than ground truth.
+
 This proposal is not trying to cover every vulnerability class at once. It starts where the repository already has evidence and terminology: object lifecycle, refcount, concurrency, and memory-safety protocols in C/C++ systems code. That scope is narrow enough to define checkable rules, but broad enough to grow beyond a single Linux refcount demonstration.
 
 ## Objectives/Project Ideas/Research Contributions
@@ -63,9 +65,11 @@ Primary contributions:
 1. A research direction that treats ML for vulnerability research as high-confidence candidate proposal, not generic function-level vulnerability classification.
 2. A system design that uses source code and tool-generated facts for ranking, while keeping runtime evidence and patch evidence as label, validation, and evaluation artifacts.
 3. A dataset design that preserves real project context, source versions, candidate locations, evidence provenance, and uncertainty.
-4. A model target focused on proposing where to inspect, what rule may be violated, what object may be affected, and what evidence should be checked next.
-5. A validation policy that separates model suggestions from vulnerability truth, requiring checkers, crashes, reproducers, fuzz tests, patch-confirmed behavior, or explicit `UNKNOWN`.
-6. A human-audit workflow that helps reviewers inspect a small ranked set of evidence-backed candidates instead of manually validating thousands of raw locations.
+4. A candidate-refinement design that uses typed tool-evidence queries, optional vulnerability-concept descriptions, missing-view masks, and evidence-strength weights to align source, AST, event, graph, and context views.
+5. A training objective that combines task-local candidate ranking with auxiliary contrastive learning, evidence selection, rule/object prediction, validation-guidance prediction, and uncertainty calibration.
+6. A model target focused on proposing where to inspect, what rule may be violated, what object may be affected, and what evidence should be checked next.
+7. A validation policy that separates model suggestions from vulnerability truth, requiring checkers, crashes, reproducers, fuzz tests, patch-confirmed behavior, or explicit `UNKNOWN`.
+8. A human-audit workflow that helps reviewers inspect a small ranked set of evidence-backed candidates instead of manually validating thousands of raw locations.
 
 ## Project Execution Map
 
@@ -108,6 +112,12 @@ new source snapshot
 At inference time, labels, fixed source, patch truth, known root cause, and oracle results are hidden unless the runtime pipeline executes the checker or oracle.
 
 We also keep a source-code-only mode. This mode can be integrated into LLM-agent workflows as a triage assistant that suggests suspicious locations, likely rules, and review questions. Downstream investigators may use VulnSignal's ranked candidates and evidence to construct hypotheses for further investigation, but hypothesis construction is outside the core ranker output. Source-code-only suggestions are not validation; checker/oracle evidence is still required for `PASS`, `FAIL`, or `UNKNOWN` labels.
+
+Inference should be reported by mode:
+
+- standard tool-grounded inference: known or supported vulnerability families with source windows and tool-derived evidence views. This is the main VulnSignal claim.
+- compositional few/zero-shot inference: a new rule is described using known evidence types, such as acquire, release, callback, lock, dereference, or bounds-check events. This may generalize across familiar evidence schemas but still needs later checker/oracle validation.
+- description-only zero-shot inference: a human-authored or LLM-assisted vulnerability hypothesis is used as the query when tool-grounded evidence or public evidence is unavailable. This can guide hypothesis-based checks and exploratory ranking, but it is not validation and should be reported separately from the main tool-grounded result.
 
 ## Methodology
 
@@ -172,6 +182,8 @@ These datasets will be naturally imbalanced and mixed-strength: most candidate l
 Each training example is a candidate-level multi-view record. The primary unit is `(task_instance, candidate_location)`. The model does not consume the whole project as one long sequence. Instead, each candidate can be represented by source window sequences, protocol/API sequences, structured fact/path records, optional graph structure, task context text, and optional agent-view JSONL data. Oracle, fuzz, reproducer, and patch evidence are stored as hidden supervision and evaluation evidence unless the same kind of evidence is generated at inference time.
 
 Source windows are not read directly from raw repository files by the model. A preprocessing step extracts a bounded file/function/line region, tokenizes it, adds line-position features, and marks the candidate span. The model consumes this prepared token/line sequence. Protocol/API event sequences capture ordered lifecycle or security-relevant events around a candidate, such as acquire, release, refcount update, publish, cancel work, or destroy. Structured fact/path records capture typed facts and relations, such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Optional graph structure is built from those structured facts, for example callgraph, dataflow, or object-flow neighborhoods around the candidate. Task context is consumed as short text. Optional agent-view JSONL data may be consumed only when the same agent-view generator is available during inference and does not include hidden label truth. This allows the model to support source-code-only mode, tool-grounded mode, and multi-view mode without changing the dataset unit.
+
+The dataset should not force every fine-grained relationship into a hand-built graph before the model sees it. The required explicit alignment is candidate-level and provenance-level: task ID, candidate ID, source location, view, tool, extraction rule, and missing-view mask. Each view should still be normalized into generalized semantic fields, such as operation role, API family, operation class, security axis, lifecycle stage, identity status, and rule family, so the model does not only memorize project-specific names. Within that candidate record, cross-attention should learn soft relationships between source tokens, AST/call facts, lifecycle/API events, object-identity facts when available, CFG/order facts, and graph facts. This is similar to parallel language data: sentence pairs are aligned at the example level, while token-to-token alignment is learned. Tool-proven object-operation edges, alias edges, callback edges, and rule validations are still valuable, but they are validation or high-precision auxiliary views, not mandatory hand-authored supervision for every example.
 
 ### Protocol/API Event Extraction Tooling
 
@@ -263,6 +275,7 @@ Input views:
 - structured fact/path records: call edges, dataflow edges, object-flow links, path nodes, and rule hits
 - graph structure: optional callgraph, dataflow, or object-flow neighborhood derived from structured facts
 - task context text: crash summary, advisory text, checker question, rule brief, or benchmark description
+- vulnerability-concept descriptions: optional family/rule descriptions, human-authored hypotheses, or LLM-assisted hypotheses used as weak auxiliary concept views, not as validation truth
 - optional agent-view JSONL data: LLM-agent summaries, affected-object guesses, review questions, and test ideas generated without hidden oracle or patch truth
 
 Embedding design:
@@ -274,15 +287,21 @@ Each input source has its own encoder that turns that input into numeric embeddi
 - structured fact/path encoder: fact-kind embeddings, predicate embeddings, object-ID embeddings, edge-type embeddings, path-position embeddings
 - graph encoder: optional node-type embeddings, edge-type embeddings, and neighborhood-position embeddings derived from structured facts
 - context encoder: text-token embeddings, source-family embeddings, rule-family embeddings, task-type embeddings
+- vulnerability-concept encoder: text embeddings for rule/family descriptions, CVE/advisory descriptions, human-authored hypotheses, or LLM-assisted concept summaries when allowed by the split policy
 - optional agent-view encoder: provenance embeddings and text-token embeddings for summaries, affected-object guesses, review questions, and test ideas
 
 Fusion:
 
 Cross-attention is used because each candidate has multiple input views that refer to the same code location from different perspectives. The model must learn how source tokens, protocol/API events, structured facts, graph neighborhoods, and task context align with each other. This helps the ranker distinguish normal API/event sequences from suspicious combinations of source code and tool-derived evidence.
 
+- typed query bank, where rule results, path facts, lifecycle/API events, object-identity facts, and optional vulnerability descriptions form separate query groups
+- tool-grounded queries are the primary semantic anchors; description queries are auxiliary and lower confidence
 - cross-attention between input views, where source code, checker facts, task context, and optional agent summaries can attend to each other
 - gated fusion, where the model learns how much weight to give each input view, especially when some evidence is missing or weaker
+- evidence-strength weights so dynamic-oracle, checker-conditional, weak description, and UNKNOWN views do not carry the same supervision force
 - missing-view masks so source-only ablations are allowed without pretending to be tool-grounded
+
+Unlike description-only refinement, VulnSignal refines candidate representations with a typed query bank built from tool-grounded evidence, including rule results, path facts, lifecycle/API events, object-identity facts, and optional vulnerability or hypothesis descriptions. Cross-attention learns how these evidence queries align with source, AST, event, and graph views, while availability masks and evidence-strength weights prevent missing or weak views from being treated as strong validation.
 
 Prediction heads:
 
@@ -303,6 +322,7 @@ The model is trained with a weighted multi-task loss:
 $$
 L_{\text{total}}
 = L_{\text{rank}}
++ \lambda_{\text{contrast}} L_{\text{contrast}}
 + \lambda_{\text{rule}} L_{\text{rule}}
 + \lambda_{\text{object}} L_{\text{object}}
 + \lambda_{\text{evidence}} L_{\text{evidence}}
@@ -312,7 +332,7 @@ $$
 
 The $\lambda$ values are tunable scalar weights that control how much each auxiliary loss contributes relative to candidate ranking.
 
-`L_rank` trains candidate ordering within the same task. `L_rule` trains likely rule or protocol prediction. `L_object` trains affected-object prediction. `L_evidence` trains supporting-fact selection. `L_guidance` trains validation-guidance status or action-category prediction when historical oracle links provide supervision. `L_unknown` trains confidence calibration and abstention when evidence is incomplete.
+`L_rank` trains candidate ordering within the same task. `L_contrast` aligns candidate representations with matching tool evidence, rule concepts, vulnerable/fixed contrasts, and optional description views while pushing apart mismatched evidence. `L_rule` trains likely rule or protocol prediction. `L_object` trains affected-object prediction. `L_evidence` trains supporting-fact selection. `L_guidance` trains validation-guidance status or action-category prediction when historical oracle links provide supervision. `L_unknown` trains confidence calibration and abstention when evidence is incomplete.
 
 ### Training
 
@@ -364,12 +384,36 @@ Auxiliary losses:
 - validation-guidance classification or multilabel binary cross-entropy trains the guidance head only when historical oracle links identify a useful validation target, entrypoint, sanitizer/checker direction, or abstention decision.
 - UNKNOWN/confidence calibration or abstention-style objective trains the model to lower confidence when evidence is incomplete, conflicting, or outside the checker/oracle coverage.
 
+Contrastive learning:
+
+Contrastive learning is an auxiliary objective for multi-view alignment. Positive pairs can include a candidate source window with its matching tool-grounded evidence, rule instance, path evidence, vulnerable/fixed patch contrast, or allowed vulnerability-concept description. When no tool-grounded or public evidence exists, human-authored or LLM-assisted hypotheses may form weak concept pairs for exploratory training or ranking, but they must be marked as `hypothesis_only` and cannot promote label strength. Negative pairs can include unrelated rule evidence, evidence from another task, nearby hard negatives, fixed-version analogs, or description views from a different family.
+
+One standard form is InfoNCE:
+
+$$
+L_{\text{contrast}}
+=
+-\log
+\frac{
+\exp(\mathrm{sim}(z_c, z_e^+) / \tau)
+}{
+\exp(\mathrm{sim}(z_c, z_e^+) / \tau)
++
+\sum_{e^-}
+\exp(\mathrm{sim}(z_c, z_e^-) / \tau)
+}
+$$
+
+where $z_c$ is the candidate representation, $z_e^+$ is matching evidence or concept representation, $z_e^-$ is non-matching evidence, $\tau$ is the temperature, and $\mathrm{sim}$ is cosine similarity or a learned similarity score. This loss should not create labels by itself; it teaches representation alignment under the label-strength policy.
+
 Training implementation can use PyTorch. The first implementation should prioritize:
 
 1. source-only baseline
 2. source + fact/path ranker
 3. source + fact/path + context ranker
-4. optional agent-view reranker
+4. source + tool-evidence query bank with contrastive alignment
+5. optional vulnerability-concept description view
+6. optional agent-view reranker
 
 Hyperparameter tuning should be modest at first: candidate window size, maximum candidates per task, encoder size, fusion method, hard-negative sampling weight, loss weights, and top-k review budget. Optuna or a similar search tool should be used only after the baseline pipeline produces reliable validation results.
 

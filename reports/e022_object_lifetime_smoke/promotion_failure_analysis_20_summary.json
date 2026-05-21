@@ -1,0 +1,24 @@
+{
+  "candidate_count": 51,
+  "unpromoted_patch_candidate_count": 45,
+  "failure_reason_counts": {
+    "coccinelle_window_evidence_available": 8,
+    "missing_fixed_fact_for_VS-LIFE-RCU-DEFER-001": 2,
+    "missing_fixed_fact_for_VS-LIFE-REF-LIVE-001": 1,
+    "missing_fixed_view_codeql_facts": 31,
+    "missing_vulnerable_fact_for_VS-LIFE-REF-LIVE-001": 1,
+    "missing_vulnerable_view_codeql_facts": 32,
+    "no_coccinelle_window_match": 37,
+    "no_current_rule_selected_candidate": 42,
+    "no_full_source_codeql_extraction": 31,
+    "rule_selected_but_preconditions_failed": 3,
+    "vulnerable_parent_build_failed": 1
+  },
+  "automated_next_action_counts": {
+    "add_rule_spec_or_object_aware_facts": 42,
+    "crosscheck_with_full_source_or_promote_under_coccinelle_window_policy": 8,
+    "repair_vulnerable_build_profile_or_replace_task": 1,
+    "solve_kbuild_profile_or_use_secondary_tool_lane": 31,
+    "use_codeql_v2_object_facts_or_secondary_tool_crosscheck": 3
+  }
+}

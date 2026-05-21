@@ -17,6 +17,7 @@ Progress:
 | Proposal and project framing | Complete | `docs/PROPOSAL.md` |
 | Hard-case extraction feasibility | Complete | `docs/feasibility/hardcase_tool_feasibility/README.md` |
 | Object-lifetime pilot viability gate | Complete enough to proceed | `docs/feasibility/object_lifetime_pilot_viability/README.md` |
+| 5-task proof seed | Started | `reports/e022_object_lifetime_smoke/` |
 | 100-task dataset | Not started | Must first pass the 20-task smoke gate. |
 | Neural ranker | Blocked | Requires stable dataset rows, baselines, and leakage controls. |
 
@@ -29,9 +30,11 @@ Required smoke-dataset outputs:
 ```text
 reports/e022_object_lifetime_smoke/source_acquisition_manifest.jsonl
 reports/e022_object_lifetime_smoke/raw_candidate_sources.jsonl
+reports/e022_object_lifetime_smoke/source_snapshots.jsonl
 reports/e022_object_lifetime_smoke/task_instances.jsonl
 reports/e022_object_lifetime_smoke/candidate_locations.jsonl
 reports/e022_object_lifetime_smoke/source_windows.jsonl
+reports/e022_object_lifetime_smoke/patch_hunks.jsonl
 reports/e022_object_lifetime_smoke/protocol_api_sequences.jsonl
 reports/e022_object_lifetime_smoke/structured_facts_paths.jsonl
 reports/e022_object_lifetime_smoke/labels.jsonl
@@ -57,7 +60,7 @@ Open:
 
 ## Phase 1 - Object-Lifetime Source Admission
 
-Status: **in progress next**.
+Status: **in progress**.
 
 Goal: Build a raw pool of at least 150 candidate source records, then promote only records that survive provenance, source snapshot, and relevance checks.
 
@@ -113,6 +116,41 @@ Status: **current active phase**.
 
 Goal: Build 20 task instances end to end before attempting the 100-task dataset.
 
+Current proof seed:
+
+```text
+5 raw candidate sources
+20 source snapshot records
+20 task instances
+15 additional admitted-for-extraction task candidates
+20 total task candidates with NVD records and reachable primary patch URLs
+20 task candidates materialized to patch metadata and affected C-file lists
+51 patch-anchored candidate locations
+100 weak hard-negative candidate locations
+151 combined candidate locations
+11 task candidates with fixed-view Kbuild-backed CodeQL lifecycle facts
+10 task candidates with both vulnerable-view and fixed-view Kbuild-backed CodeQL lifecycle facts
+20 vulnerable/fixed lifecycle fact comparison rows
+51 extracted patch hunks
+51 patch-anchored vulnerable/fixed source windows fetched from public commit refs
+151 source windows including weak hard negatives
+10 CodeQL source-window fixture protocol/API rows
+20 CodeQL source-window fixture lifecycle-call fact rows
+3 fixed-view full-source Kbuild-backed CodeQL fact rows for `vs-smoke-T0005`
+4 recorded conditional promotion rules
+6 positive codeql_conditional labels
+12 scoped codeql_conditional_negative labels
+29 Coccinelle lifecycle matches across 19 vulnerable/fixed source-window view runs
+9 Coccinelle wrapper-candidate matches across 9 vulnerable/fixed source-window view runs
+Joern CFG/DDG/CPG14 exports for 12 source-window files covering the 6 promoted candidates
+automated failure-analysis rows for all 51 patch-anchored candidates
+automated rule-gap triage rows for all 51 patch-anchored candidates
+normalized multi-view model-input artifacts for AST/expression, object identity, lifecycle/API events, CFG/order, alias/dataflow, callback/async, and rule-validation views
+0 dynamic labels
+```
+
+This is now an admission/provenance proof, a parser-backed CodeQL source-window fixture probe, a 20-task patch/source-window materialization, a hard-negative generation pass, a Kbuild-backed CodeQL extraction attempt across all 20 candidates, a first conditional label-promotion pass, an automated secondary-tool evidence pass, and a rule-gap triage pass. It passes the materialization part of the smoke gate and now passes the minimum conditional-label count. It still does not pass a dynamic-oracle gate because 0 tasks have reproduced pre-patch FAIL / post-patch PASS evidence, 9 tasks still lack full-source facts, and one task has fixed-view facts but a vulnerable-parent build failure.
+
 For each admitted task:
 
 1. Resolve vulnerable and fixed source snapshots where available.
@@ -152,11 +190,27 @@ Smoke gate:
 - 20/20 admitted tasks have source snapshot records.
 - 20/20 admitted tasks have generated candidate locations.
 - 15+ tasks have source windows.
-- 10+ tasks have CodeQL/lifecycle facts.
+- 10+ tasks have full-source CodeQL/lifecycle facts.
 - 5+ tasks have `dynamic` or `codeql_conditional` labels.
 - 0 tasks rely only on vague text claims.
 
 If this gate fails, do not scale to 100. Either reduce the pilot target, expand the family scope, or improve source/tool extraction first.
+
+Current smoke-gate decision:
+
+- Materialization gate: passed for 20/20 tasks.
+- Source-window gate: passed for 20/20 tasks.
+- Fixed-view tool-fact gate: passed at 11/20 tasks.
+- Vulnerable/fixed comparison gate: partially passed at 10/20 tasks.
+- Strong-label gate: passed for conditional labels at 6 candidate rows across 4 tasks.
+- Dynamic-oracle gate: failed at 0 reproduced FAIL/PASS labels.
+- Secondary-tool automation gate: passed for Coccinelle window matching and Joern graph export.
+- Failure-analysis gate: passed for all 51 patch-anchored candidates.
+- Wrapper-candidate lane: passed; 9 Coccinelle parser-backed wrapper-candidate matches were captured as candidate-only evidence.
+- Rule-gap triage gate: passed for all 51 patch-anchored candidates; 15 need new rule plus tool extraction, 7 need secondary-tool promotion policy, 23 should remain weak or be replaced for now, and 6 are already covered.
+- Multi-view bridge gate: started; candidate-level normalized views exist, but object identity and graph/path views are still mostly unresolved or missing.
+
+Next work must therefore focus on improving tool-derived normalization and rule coverage together. The rule-gap report says the most useful immediate work is wrapper/API ontology mapping, callback handoff rules, generalized RCU deferred-release rules, object identity, graph/path views, and Kbuild or secondary-tool lanes. Additional checker rules, dynamic-oracle evidence, and remaining Kbuild profiles still matter, but new rules must be backed by tool-derived evidence rather than patch-text categories alone.
 
 ## Phase 2 - 100-Task Mixed-Strength Pilot Dataset
 

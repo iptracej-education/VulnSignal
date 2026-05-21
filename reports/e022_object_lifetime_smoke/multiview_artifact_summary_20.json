@@ -1,0 +1,70 @@
+{
+  "status": "completed",
+  "artifact_purpose": "tool-derived multi-view bridge between evidence extraction and model input encoders",
+  "input_counts": {
+    "candidate_locations": 151,
+    "source_windows": 151,
+    "codeql_fact_rows": 227,
+    "coccinelle_view_rows": 102,
+    "coccinelle_wrapper_view_rows": 102,
+    "rule_runs": 21,
+    "evidence_packets": 6
+  },
+  "output_counts": {
+    "ast_expression_facts": 227,
+    "object_identity_facts": 227,
+    "operation_role_facts": 265,
+    "control_flow_order_facts": 151,
+    "alias_dataflow_facts": 151,
+    "callback_graph_facts": 151,
+    "vulnerability_rule_instances": 21,
+    "vulnerability_rule_validation": 21
+  },
+  "object_identity_counts": {
+    "unresolved": 204,
+    "tool_expression_identity": 23
+  },
+  "rule_validation_counts": {
+    "conditional_pass_object_unresolved": 6,
+    "not_promoted": 15
+  },
+  "control_flow_status_counts": {
+    "missing_required_tool_input": 145,
+    "graph_artifact_available": 6
+  },
+  "policy": {
+    "normalization": "tool-derived views with candidate-level alignment; fine-grained cross-view relationships are learned unless a tool explicitly provides them for validation",
+    "model_visible_generalization": [
+      "normalized_operation_role",
+      "api_family",
+      "operation_class",
+      "security_axis",
+      "lifecycle_stage",
+      "identity_status",
+      "missing-view status",
+      "rule_family"
+    ],
+    "audit_only_raw_fields": [
+      "callee",
+      "object_expression",
+      "file",
+      "function",
+      "source windows"
+    ],
+    "unknown_object_id": "UNKNOWN_OBJECT_ID",
+    "no_manual_source_text_identity": true,
+    "stronger_label_blocker": "object identity, alias/dataflow, callback graph, and dynamic oracle views are still incomplete for most candidates",
+    "default_model_input_alignment": "task_id + candidate_id + source location + view + producer tool + missing-view mask",
+    "explicit_relationship_edges": "not required for default inference; use only as optional tool-proven validation evidence"
+  },
+  "outputs": {
+    "ast_expression_facts": "reports/e022_object_lifetime_smoke/ast_expression_facts.jsonl",
+    "object_identity_facts": "reports/e022_object_lifetime_smoke/object_identity_facts.jsonl",
+    "operation_role_facts": "reports/e022_object_lifetime_smoke/operation_role_facts.jsonl",
+    "control_flow_order_facts": "reports/e022_object_lifetime_smoke/control_flow_order_facts.jsonl",
+    "alias_dataflow_facts": "reports/e022_object_lifetime_smoke/alias_dataflow_facts.jsonl",
+    "callback_graph_facts": "reports/e022_object_lifetime_smoke/callback_graph_facts.jsonl",
+    "vulnerability_rule_instances": "reports/e022_object_lifetime_smoke/vulnerability_rule_instances.jsonl",
+    "vulnerability_rule_validation": "reports/e022_object_lifetime_smoke/vulnerability_rule_validation.jsonl"
+  }
+}

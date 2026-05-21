@@ -1,0 +1,26 @@
+{
+  "rule_id": "VS-LIFE-REF-INSERT-001",
+  "family": "refcount_live_acquire_inserted",
+  "description": "A fixed-view live-object acquire is introduced in a candidate window where the vulnerable view lacks that live acquire.",
+  "candidate_selectors": {
+    "patch_added_contains": ["refcount_inc_not_zero"],
+    "patch_removed_excludes": ["refcount_inc"]
+  },
+  "vulnerable_required": null,
+  "fixed_required": {
+    "callee": "refcount_inc_not_zero",
+    "role": "acquire_ref_if_live"
+  },
+  "source_window_required": [],
+  "matching": {
+    "require_function": true,
+    "line_slop": 3,
+    "require_same_file": true
+  },
+  "negative_policy": {
+    "enabled": true,
+    "scope": "rule_trigger_absent_in_candidate_window"
+  },
+  "label_strength": "codeql_conditional",
+  "label_reason": "CodeQL facts show fixed refcount_inc_not_zero in the candidate-local function/window while the vulnerable view lacks the same live acquire."
+}

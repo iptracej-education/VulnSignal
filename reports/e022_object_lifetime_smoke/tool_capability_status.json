@@ -1,0 +1,62 @@
+{
+  "tools": {
+    "codeql": {
+      "path": "/usr/local/bin/codeql",
+      "lane": "static_codeql"
+    },
+    "spatch": {
+      "path": "/usr/bin/spatch",
+      "lane": "static_coccinelle"
+    },
+    "joern": {
+      "path": "/usr/local/bin/joern",
+      "lane": "static_graph"
+    },
+    "joern-parse": {
+      "path": "/usr/local/bin/joern-parse",
+      "lane": "static_graph"
+    },
+    "joern-export": {
+      "path": "/usr/local/bin/joern-export",
+      "lane": "static_graph"
+    },
+    "syz-manager": {
+      "path": null,
+      "lane": "dynamic_oracle"
+    },
+    "qemu-system-x86_64": {
+      "path": null,
+      "lane": "dynamic_oracle"
+    },
+    "clang": {
+      "path": "/home/iptracej/Dev/VulnSignal/.tools/SVF/llvm-21.1.0.obj/bin/clang",
+      "lane": "llvm_bitcode"
+    },
+    "svf-wpa": {
+      "path": "/home/iptracej/Dev/VulnSignal/.tools/SVF/Release-build/bin/wpa",
+      "lane": "static_svf"
+    },
+    "svf-ex": {
+      "path": "/home/iptracej/Dev/VulnSignal/.tools/SVF/Release-build/bin/svf-ex",
+      "lane": "static_svf"
+    },
+    "llvm2svf": {
+      "path": "/home/iptracej/Dev/VulnSignal/.tools/SVF/Release-build/bin/llvm2svf",
+      "lane": "static_svf"
+    }
+  },
+  "available_lanes": [
+    "llvm_bitcode",
+    "static_coccinelle",
+    "static_codeql",
+    "static_graph",
+    "static_svf"
+  ],
+  "blocked_lanes": [
+    "dynamic_oracle"
+  ],
+  "notes": [
+    "SVF binaries are available locally but require LLVM bitcode generated from buildable translation units.",
+    "Dynamic syzkaller/QEMU oracle execution is not available in the current PATH."
+  ]
+}

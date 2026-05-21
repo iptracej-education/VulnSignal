@@ -1,0 +1,29 @@
+{
+  "rule_id": "VS-LIFE-REF-LIVE-001",
+  "family": "refcount_live_acquire",
+  "description": "A vulnerable-view unchecked refcount acquire is replaced by a fixed-view live-object acquire in the same candidate-local window.",
+  "candidate_selectors": {
+    "patch_added_contains": ["refcount_inc_not_zero"],
+    "patch_removed_contains": ["refcount_inc"]
+  },
+  "vulnerable_required": {
+    "callee": "refcount_inc",
+    "role": "acquire_ref_unchecked"
+  },
+  "fixed_required": {
+    "callee": "refcount_inc_not_zero",
+    "role": "acquire_ref_if_live"
+  },
+  "source_window_required": [],
+  "matching": {
+    "require_function": true,
+    "line_slop": 3,
+    "require_same_file": true
+  },
+  "negative_policy": {
+    "enabled": true,
+    "scope": "rule_trigger_absent_in_candidate_window"
+  },
+  "label_strength": "codeql_conditional",
+  "label_reason": "CodeQL facts show vulnerable refcount_inc and fixed refcount_inc_not_zero in the same candidate-local function/window, matching the patch hunk."
+}

@@ -1,0 +1,118 @@
+{
+  "schema_version": "0.1",
+  "policy_document": "docs/project/VULNSIGNAL_TOOL_DERIVED_NORMALIZATION_POLICY.md",
+  "principle": "Normalized model inputs must cite tool-derived evidence. Default model alignment is candidate-level, not a hand-built fine-grained relationship graph. Missing tool proof is represented as UNKNOWN, not hand-normalized source text.",
+  "artifacts": {
+    "source_window": {
+      "artifact": "source_windows_20_with_hard_negatives.jsonl",
+      "accepted_tools": [
+        "public source snapshot fetcher"
+      ],
+      "normalization_policy": "Raw source is preserved for audit; no semantic normalization is inferred from raw source alone."
+    },
+    "ast_expression_facts": {
+      "artifact": "ast_expression_facts.jsonl",
+      "accepted_tools": [
+        "CodeQL",
+        "Clang AST",
+        "Joern CPG"
+      ],
+      "fallback_policy": "Emit no tool-proven expression row, or emit UNKNOWN when a required expression cannot be rendered by the tool."
+    },
+    "object_identity_facts": {
+      "artifact": "object_identity_facts.jsonl",
+      "accepted_tools": [
+        "CodeQL",
+        "SVF",
+        "Joern CPG",
+        "Joern DDG"
+      ],
+      "fallback_policy": "Use UNKNOWN_OBJECT_ID unless a tool exposes the object expression, value-flow identity, alias set, or graph node."
+    },
+    "operation_role_facts": {
+      "artifact": "operation_role_facts.jsonl",
+      "accepted_tools": [
+        "CodeQL",
+        "Coccinelle",
+        "Joern CPG"
+      ],
+      "model_visible_normalized_fields": [
+        "normalized_operation_role",
+        "api_family",
+        "operation_class",
+        "security_axis",
+        "lifecycle_stage",
+        "model_event_token"
+      ],
+      "fallback_policy": "Coccinelle bounded-window matches are supporting operation evidence unless a rule explicitly allows promotion."
+    },
+    "wrapper_candidate_operation_facts": {
+      "artifact": "operation_role_facts.jsonl",
+      "source_artifact": "coccinelle_wrapper_candidate_matches_20.jsonl",
+      "accepted_tools": [
+        "Coccinelle"
+      ],
+      "model_visible_normalized_fields": [
+        "normalized_operation_role",
+        "api_family",
+        "operation_class",
+        "security_axis",
+        "lifecycle_stage",
+        "model_event_token"
+      ],
+      "fallback_policy": "Wrapper-candidate matches are parser-backed hints only. They must use trust_level=wrapper_candidate_only and cannot promote labels without a separate wrapper rule policy."
+    },
+    "control_flow_order_facts": {
+      "artifact": "control_flow_order_facts.jsonl",
+      "accepted_tools": [
+        "Joern CFG",
+        "CodeQL control-flow APIs"
+      ],
+      "fallback_policy": "Graph availability may be recorded, but candidate-local order claims require parsed CFG/order edges."
+    },
+    "alias_dataflow_facts": {
+      "artifact": "alias_dataflow_facts.jsonl",
+      "accepted_tools": [
+        "SVF",
+        "CodeQL dataflow",
+        "Joern DDG",
+        "Joern PDG"
+      ],
+      "fallback_policy": "Use missing_required_tool_input until bitcode/dataflow artifacts exist."
+    },
+    "callback_graph_facts": {
+      "artifact": "callback_graph_facts.jsonl",
+      "accepted_tools": [
+        "SVF",
+        "CodeQL",
+        "Joern CPG",
+        "Joern DDG"
+      ],
+      "fallback_policy": "Use missing_required_tool_input until callbacks, async enqueue sites, and handler targets are tool-resolved."
+    },
+    "vulnerability_rule_instances": {
+      "artifact": "vulnerability_rule_instances.jsonl",
+      "accepted_tools": [
+        "VulnSignal rule runner over CodeQL, Coccinelle, Joern, SVF, and oracle evidence"
+      ],
+      "fallback_policy": "Rule instances may be conditional; unresolved object identity prevents promotion beyond the rule's recorded strength."
+    },
+    "vulnerability_rule_validation": {
+      "artifact": "vulnerability_rule_validation.jsonl",
+      "accepted_tools": [
+        "VulnSignal rule validator"
+      ],
+      "fallback_policy": "Record required-view pass/fail/UNKNOWN so label promotion is auditable."
+    },
+    "optional_tool_proven_relationship_edges": {
+      "artifact": "optional_future_relationship_edges.jsonl",
+      "accepted_tools": [
+        "CodeQL",
+        "SVF",
+        "Joern CPG",
+        "Joern DDG"
+      ],
+      "fallback_policy": "Do not require explicit relationship edges for default training or inference. Add them only when a tool produces them and treat them as auxiliary validation evidence."
+    }
+  }
+}

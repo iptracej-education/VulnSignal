@@ -1,0 +1,12 @@
+{
+  "selected_task_db_keys": [
+    "vs-smoke-T0005"
+  ],
+  "view": "current_db_snapshot",
+  "row_count": 63,
+  "completed_databases": 1,
+  "limitations": [
+    "Existing local DB paths may have been reused across fixed/vulnerable runs.",
+    "For label promotion, run from fresh view-specific databases or record the view source explicitly."
+  ]
+}
