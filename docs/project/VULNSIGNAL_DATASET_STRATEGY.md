@@ -43,7 +43,7 @@ The current source decision is conservative:
 | Magma | Use as a pilot executable-oracle benchmark only after repository/license review. | Magma provides Docker-based ground-truth fuzzing infrastructure and stable releases, but it is a benchmark with forward-ported/instrumented bugs; do not generalize from it alone. |
 | CyberGym | Hold out for evaluation/schema inspiration by default. | CyberGym is an agent evaluation benchmark with task packets and large data requirements; using it for training would contaminate reported held-out evaluation unless split governance is explicit. |
 
-Blocked from v0 primary training truth:
+Blocked from primary training truth:
 
 - advisory-only rows
 - patch-hunk-only rows
@@ -100,25 +100,46 @@ Internet sanity check as of 2026-05-16:
 Practical conclusion:
 
 - **Object-lifetime/refcount pilot:** target 50-100 tasks and 5,000-10,000 candidate locations first.
-- **300-task v0 training target:** achievable only if it includes multiple C/C++ memory-safety families and CodeQL/checker-generated conditional tasks across major applications/OS projects.
+- **1,600-candidate checkpoint:** use this as a minimum candidate-row sanity check before serious baseline training. It is not directly comparable to CLeVeR-style function/sample counts, and it is not a claim of 1,600 vulnerabilities.
+- **300-task first multi-family training target:** achievable only if it includes multiple C/C++ memory-safety families and CodeQL/checker-generated conditional tasks across major applications/OS projects.
 - **20,000 candidates:** achievable because each task yields many candidate locations, but this must not be described as 20,000 vulnerabilities.
-- **Strong/oracle positives:** expect far fewer than task count; target 100+ strong/conditional positive candidates for a serious v0, not 300 confirmed bugs.
+- **Strong/oracle positives:** expect far fewer than task count; target 100+ strong/conditional positive candidates for a serious first multi-family dataset, not 300 confirmed bugs.
 
 Therefore the first milestone should be:
 
 ```text
+scale_checkpoint_1600_candidates:
+  50-75 task_instances
+  1,600+ candidate_locations
+  task-grouped candidate rows
+  label strength + missing-view masks on all model rows
+  no global vulnerable/non-vulnerable function classifier claim
+
 object_lifetime_pilot:
   50-100 task_instances
   5,000-10,000 candidate_locations
   one rule family
   schema + checker validation only
 
-multi_family_v0:
+first_multi_family_dataset:
   300 task_instances
   20,000 candidate_locations
   object lifetime + bounds + double-free/null/error-path families
   CodeQL/checker conditional labels plus reproduced dynamic-oracle evidence
 ```
+
+Current status from the 20-task smoke set:
+
+```text
+20 task_instances
+151 candidate_locations
+7.55 candidates per task
+6 positive codeql_conditional labels
+12 scoped codeql_conditional_negative labels
+0 dynamic oracle labels
+```
+
+This is a smoke proof, not a training-scale dataset. The immediate scale problem is candidate density and evidence quality, not the lack of 1,600 confirmed vulnerabilities. Candidate generation must broaden from patch anchors and weak hard negatives into CodeQL path nodes, same-function windows, same-file related functions, callgraph/dataflow neighbors, wrapper/API seeds, RCU/callback/timer/workqueue anchors, and tool-near hard negatives.
 
 ## Preprocessing pipeline
 
@@ -142,7 +163,7 @@ Required preprocessing outputs:
 - `oracle_runs.jsonl`: executable evidence rows such as pre-patch result, post-patch result, command, exit code, sanitizer/crash output, and reproducibility status.
 - `labels.jsonl`: candidate-level label value, label strength, label source, evidence references, limitations, and explicit `UNKNOWN` when proof is incomplete.
 
-The v0 model consumes derived records, not the raw original datasets directly. Source windows become bounded token sequences. CodeQL/checker output becomes typed fact/path records. Candidates are grouped by `task_id` for pairwise or listwise ranking.
+The first model consumes derived records, not the raw original datasets directly. Source windows become bounded token sequences. CodeQL/checker output becomes typed fact/path records. Candidates are grouped by `task_id` for pairwise or listwise ranking.
 
 Candidate locations are pointers to existing source regions. They are not mutated code variants, generated patches, or alternate programs. A candidate row says, in plain English: "for this task, inspect this file/function/line window." Mutation guidance may be a later model output, but mutation is not how candidate rows are created.
 
@@ -160,7 +181,7 @@ Typical candidate sources per task:
 | Callgraph/dataflow neighbors | 10-15 | Static analysis facts or source index |
 | Hard negatives near evidence | 10+ | At least one positive/anchor location |
 
-These counts are planning ranges, not guarantees. The v0 target assumes a mix of source families so that average candidate count can reach roughly 40-100 per task.
+These counts are planning ranges, not guarantees. The first multi-family target assumes a mix of source families so that average candidate count can reach roughly 40-100 per task.
 
 ## Test-time input contract
 
@@ -196,14 +217,14 @@ Allowed scalable review:
 - sample negatives, low-ranked rows, and `UNKNOWN` rows for quality and leakage
 - escalate ambiguous or high-impact rows
 
-Practical v0 human-review budget:
+Practical first multi-family human-review budget:
 
 ```text
 per_task:
   top_ranked_packets: 3-5
   sampled_negative_or_unknown_packets: 1-2
 
-300_task_v0:
+first_multi_family_dataset:
   expected_review_packets: about 1,500-2,100
   exhaustive_candidate_rows: explicitly out of scope
 ```
@@ -280,7 +301,7 @@ Allowed source-only track:
 - input: source snapshot, task brief, generated source windows
 - model: neural source encoder, language-model-assisted ranker, or retrieval-augmented source ranker
 - output: ranked source locations, evidence summary draft, and uncertainty
-- use: triage, reviewer productivity, baseline comparison, and early v0 experimentation
+- use: triage, reviewer productivity, baseline comparison, and early model experimentation
 
 Blocked source-only claim:
 

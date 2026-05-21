@@ -160,6 +160,13 @@ VulnSignal is not one downloaded vulnerable/non-vulnerable dataset. It is a deri
 Initial scale targets:
 
 ```text
+scale_checkpoint_1600_candidates:
+  50-75 task_instances
+  1,600+ candidate_locations
+  task-grouped candidate rows
+  label strength + missing-view masks on all model rows
+  no global vulnerable/non-vulnerable function classifier claim
+
 object_lifetime_pilot:
   50-100 task_instances
   5,000-10,000 candidate_locations
@@ -174,6 +181,8 @@ first_multi_family_dataset:
 ```
 
 The 300-task target is not credible if interpreted as 300 strong Linux object-lifetime/refcount vulnerabilities from one source. It should be treated as the first multi-family C/C++ dataset target after the object-lifetime pilot validates the pipeline.
+
+The roughly 1,600-sample scale used by related representation-learning systems such as CLeVeR is a useful minimum scale sanity check, but it is not directly comparable to VulnSignal. VulnSignal's unit is a candidate row grouped under a task, not an independent function-level vulnerable/non-vulnerable example. The current smoke dataset has 151 candidate locations across 20 tasks, or about 9% of a 1,600-candidate checkpoint. The next scale step should raise candidate density to roughly 25-50 candidates per task through tool-backed candidate generation before claiming a trainable baseline dataset.
 
 These datasets will be naturally imbalanced and mixed-strength: most candidate locations are not the confirmed root cause, and many tasks will have conditional, weak, or `UNKNOWN` evidence rather than reproduced dynamic proof. This is not an exception to hide; it is the normal shape of real vulnerability-research data. VulnSignal therefore stores label value, label strength, evidence source, limitations, and UNKNOWN reason separately. Later training and evaluation sections mitigate this with task-level ranking losses, label-strength weighting, hard-negative sampling, explicit `UNKNOWN` calibration, and top-k review metrics instead of global balanced binary classification.
 

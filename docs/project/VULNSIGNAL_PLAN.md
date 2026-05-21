@@ -212,6 +212,24 @@ Current smoke-gate decision:
 
 Next work must therefore focus on improving tool-derived normalization and rule coverage together. The rule-gap report says the most useful immediate work is wrapper/API ontology mapping, callback handoff rules, generalized RCU deferred-release rules, object identity, graph/path views, and Kbuild or secondary-tool lanes. Additional checker rules, dynamic-oracle evidence, and remaining Kbuild profiles still matter, but new rules must be backed by tool-derived evidence rather than patch-text categories alone.
 
+Candidate-scale checkpoint:
+
+The current smoke dataset has 151 candidate locations. If we use a CLeVeR-like scale of roughly 1,600 vulnerable/non-vulnerable samples as a minimum sanity checkpoint, VulnSignal is currently at about 9% of that row count. This comparison is only a scale check: CLeVeR-style examples are not the same unit as VulnSignal task-grouped candidate rows.
+
+Before any serious baseline-training claim, create:
+
+```text
+scale_checkpoint_1600_candidates:
+  50-75 task_instances
+  1,600+ candidate_locations
+  candidate rows grouped by task_id
+  label_strength recorded for every labeled row
+  missing-view mask recorded for every candidate row
+  no global vulnerable/non-vulnerable function-label claim
+```
+
+At the current average of 7.55 candidates per task, 1,600 rows would require more than 200 similar tasks, which is not realistic or useful. The next implementation goal is to raise candidate generation to roughly 25-50 candidates per task by adding CodeQL path nodes, same-function nearby windows, same-file related functions, callgraph/dataflow neighbors, wrapper/API seeds, RCU/callback/timer/workqueue anchors, and hard negatives near tool evidence.
+
 ## Phase 2 - 100-Task Mixed-Strength Pilot Dataset
 
 Status: **blocked until Phase 1A passes**.
@@ -238,8 +256,10 @@ Target composition:
 
 Phase 2 exit gate:
 
+- At least 1,600 candidate rows exist before any serious baseline-training claim.
 - At least 50 task instances have public source snapshots and generated candidate locations.
 - At least 25 task instances have `dynamic` or `codeql_conditional` labels.
+- Candidate generation averages at least 25 candidates per task before claiming the path to 5,000-10,000 candidates.
 - At least 100 task instances are admitted with explicit label strength, or the scope is formally revised.
 - Train/test splits prevent source, project, time, and patch leakage.
 

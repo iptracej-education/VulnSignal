@@ -120,6 +120,18 @@ Current generated state:
 0 dynamic oracle labels
 ```
 
+Candidate-scale status:
+
+```text
+151 candidate locations today
+~9% of a 1,600-candidate minimum training-scale checkpoint
+current average: 7.55 candidates per task
+```
+
+The assumed CLeVeR-like scale of roughly 1,600 vulnerable/non-vulnerable samples is useful as a minimum sanity checkpoint, not as a directly comparable target. VulnSignal's unit is a candidate row grouped under a task, not an independent function-level label. The next dataset milestone should therefore be at least 1,600 candidate rows with explicit task grouping, label strength, evidence provenance, and missing-view masks before making any serious model-training claim.
+
+The correct way to grow is not to claim 1,600 vulnerabilities. It is to increase admitted tasks and candidate rows per task while improving evidence quality. At the current narrow average, reaching 1,600 rows would require about 212 similar tasks, which is not the right path. The pipeline should first broaden candidate generation to roughly 25-50 candidates per task using tool and source-neighborhood evidence, so 50-75 tasks can reach the first candidate-scale checkpoint without weakening the label policy.
+
 Current tool-derived artifacts include:
 
 ```text
@@ -136,6 +148,14 @@ Current tool-derived artifacts include:
 Coccinelle currently provides 29 lifecycle matches and 9 wrapper-candidate matches. Wrapper candidates are parser-backed hints only; they do not promote labels without a separate rule policy.
 
 The current blocker is not whether candidates can be created. The blocker is stronger evidence extraction: object identity, alias/dataflow, callback graph/path facts, dynamic oracle support, and broader tool-backed rule coverage.
+
+Immediate dataset-scaling work:
+
+- add candidate sources from CodeQL path nodes, same-function nearby windows, same-file related functions, callgraph/dataflow neighbors, wrapper/API seeds, RCU/callback/timer/workqueue anchors, and hard negatives near tool evidence
+- repair the remaining Kbuild/CodeQL extraction gaps before treating the smoke set as scalable
+- add wrapper/API ontology mapping, callback handoff rules, generalized RCU deferred-release rules, and object-identity extraction
+- keep dynamic-oracle and reproducer evidence as the strongest label lane, but do not block all static conditional labels on dynamic reproduction
+- report candidate count, task count, label strength, and missing-view coverage together; candidate count alone is not dataset quality
 
 ## Inference Modes
 

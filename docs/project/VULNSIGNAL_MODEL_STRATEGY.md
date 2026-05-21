@@ -75,7 +75,7 @@ Source encoder + CodeQL fact encoder -> fusion -> ranking score
 
 Good first implementation.
 
-Concrete v0 embedding design:
+Concrete first-model embedding design:
 
 - source window encoder: code-token embeddings, line-position embeddings, candidate-span markers
 - AST/expression encoder: expression-kind embeddings, call/callee-family embeddings, argument-position embeddings, source-location embeddings

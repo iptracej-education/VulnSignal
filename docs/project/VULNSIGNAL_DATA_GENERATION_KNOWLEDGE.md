@@ -306,6 +306,22 @@ Important boundary: the default dataset does not create an explicit object-opera
 10. Do not require manually built fine-grained cross-view edges for inference; use candidate-level alignment and missing-view masks.
 11. Use rule-gap reports to choose rule work. Do not blindly add rules for every patch hunk.
 
+## Candidate-Scale Lesson
+
+The 20-task smoke dataset currently has 151 candidate locations, or 7.55 candidates per task. This proves the extraction path, but it is not enough for training. A CLeVeR-like scale of roughly 1,600 examples is a useful minimum row-count checkpoint, but VulnSignal should treat that as 1,600 task-grouped candidate rows, not 1,600 independent vulnerable/non-vulnerable functions and not 1,600 confirmed bugs.
+
+To reach that checkpoint without weakening supervision, the next generator should increase candidate density per task:
+
+- CodeQL path nodes and checker-result anchors
+- same-function nearby windows
+- same-file related functions
+- callgraph/dataflow neighbors
+- wrapper/API seeds from Coccinelle or CodeQL facts
+- RCU/callback/timer/workqueue anchors
+- hard negatives near tool evidence
+
+The target for the next expansion is 50-75 tasks and at least 1,600 candidate rows, with every row carrying provenance, label strength when labeled, and a missing-view mask. Candidate count alone is not dataset quality.
+
 ## Next Rule Work
 
 The next representation work comes before adding many more labels:
