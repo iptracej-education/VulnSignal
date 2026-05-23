@@ -12,7 +12,7 @@ They are not the foundation for VulnSignal ground truth and should not be cited 
 
 ### E022 - Tool-Grounded Vulnerability Task Dataset Builder
 
-Goal: Build the first real task-instance dataset with source snapshots, candidate locations, CodeQL facts, and checker/dynamic oracle labels.
+Goal: Build the first real task-instance dataset with source snapshots, candidate locations, Joern/Coccinelle representation facts, CodeQL validation-attempt records, and checker/dynamic oracle labels.
 
 Expected outputs:
 
@@ -21,9 +21,9 @@ Expected outputs:
 - `reports/e022_checker_grounded_dataset/labels.jsonl`
 - `reports/e022_checker_grounded_dataset/dataset_card.md`
 
-### E023 - CodeQL Lifecycle Fact Backbone
+### E023 - Joern/Coccinelle Representation Backbone
 
-Goal: Create initial CodeQL queries and normalized fact schema.
+Goal: Create scalable Joern/Coccinelle representation extraction and normalized fact schema.
 
 Initial fact families:
 
@@ -35,9 +35,9 @@ Initial fact families:
 - async publish/cancel/lifetime events
 - suspicious bounds/copy API contexts
 
-### E024 - Executable Lifecycle Rule Checker
+### E024 - CodeQL Lifecycle Validation
 
-Goal: Run protocol rules over CodeQL/lifecycle facts and produce `PASS` / `FAIL` / `UNKNOWN`.
+Goal: Attempt CodeQL validation for applicable candidate/rule pairs and produce `rule_matched`, `rule_not_matched`, or `rule_unknown` with blocker provenance.
 
 ### E025 - Candidate Ranking Dataset
 
@@ -55,4 +55,4 @@ Evaluation should report ranking and evidence quality, not generic vulnerable/no
 
 ## Stop Conditions
 
-Do not proceed to larger model work if candidate labels are not checker-backed, CodeQL facts cannot be extracted reliably, dynamic or conditional oracle evidence is missing, train/eval contamination cannot be ruled out, or the model only beats weak text baselines rather than meaningful semantic baselines.
+Do not proceed to larger model work if candidate labels are not backed by CodeQL/checker validation attempts, dynamic-oracle evidence, or explicit UNKNOWN; Joern/Coccinelle representations cannot be extracted reliably; train/eval contamination cannot be ruled out; or the model only beats weak text baselines rather than meaningful semantic baselines.

@@ -7,7 +7,7 @@
 [![Truth](https://img.shields.io/badge/Truth-Tool%2FOracle%20Grounded-brightgreen)](#truth-boundary)
 
 
-VulnSignal is a tool-grounded vulnerability candidate-ranking framework for C/C++ systems code. It ranks suspicious source-code locations using source context, Joern/Coccinelle/parser-backed representations, optional CodeQL/checker validation, crash or patch evidence, and explicit uncertainty. It does not claim final vulnerability truth from model output alone. At inference time, tool-grounded means evidence-grounded ranking; truth still comes from checker/oracle validation or explicit `UNKNOWN`.
+VulnSignal is a tool-grounded vulnerability candidate-ranking framework for C/C++ systems code. It ranks suspicious source-code locations using source context, Joern/Coccinelle/parser-backed representations, CodeQL/checker validation attempts, crash or patch evidence, and explicit uncertainty. It does not claim final vulnerability truth from model output alone. At inference time, tool-grounded means evidence-grounded ranking; truth still comes from validator/oracle evidence or explicit `UNKNOWN`.
 
 The initial vulnerability-family focus is object lifecycle, concurrency, and memory-safety bugs. The first pilot emphasizes Linux-style object lifetime and refcount patterns, including use-after-free, publish-after-free, missing acquire/release, cancel/flush-before-destroy, and related concurrency-sensitive lifecycle rules. The broader initial scope may add bounds checks, double-free, null/error-path cleanup, and parser/input-validation memory-safety families only after the evidence pipeline is validated.
 
@@ -41,7 +41,7 @@ A task is one vulnerability-research investigation over a source snapshot, such 
 VulnSignal is:
 
 - a dataset and model pipeline for ranking vulnerability candidate locations
-- grounded in static tool representations, optional CodeQL/checker validation, dynamic oracles, patch evidence, and source snapshots
+- grounded in static tool representations, primary CodeQL/checker validation attempts, dynamic oracles, patch evidence, and source snapshots
 - designed for human-auditable triage rather than manual validation of every candidate
 - initially focused on C/C++ object lifecycle, concurrency, and memory-safety families
 - explicit about CodeQL `rule_matched`, `rule_not_matched`, `rule_unknown`, dynamic oracle results, weak labels, provenance, and split policy
@@ -107,7 +107,7 @@ These are separate dataset representations, not one combined representation. A t
 
 The dataset aligns views by `task_id`, `candidate_id`, source location, producer tool, extraction rule, and missing-view mask. The concrete model-input scaffold is `candidate_representation_index_60.jsonl`: one row per `(task_instance, candidate_location)` that links the source window, labels, tool facts, graph/path rows, rule evidence, and missing-view mask. It does not require manually built fine-grained cross-view relationship edges at inference time. The model should learn soft relationships among views; tool-proven edges may be added later only as auxiliary validation evidence.
 
-The default scalable extraction lane is Joern plus Coccinelle and parser-backed static tools. CodeQL is now a validator lane: lifecycle protocol queries live under `validators/codeql/` and attach `rule_matched`, `rule_not_matched`, or `rule_unknown` flags to candidates when a buildable CodeQL database exists.
+The default scalable extraction lane is Joern plus Coccinelle and parser-backed static tools. CodeQL is the primary validation lane for evidence level: lifecycle protocol queries live under `validators/codeql/` and every applicable candidate/rule pair must receive a CodeQL validation attempt. Successful validation attaches `rule_matched` or `rule_not_matched`; blocked validation attaches `rule_unknown` with a blocker reason such as missing build metadata, unsupported configuration, missing generated headers, or unavailable toolchain.
 
 ## Current Smoke Dataset
 
@@ -173,7 +173,7 @@ These rows are not strong labels. They are source-backed tasks now materialized 
 
 The assumed CLeVeR-like scale of roughly 1,600 vulnerable/non-vulnerable samples is useful as a minimum sanity checkpoint, not as a directly comparable target. VulnSignal's unit is a candidate row grouped under a task, not an independent function-level label. The 60-task smoke set now passes the 1,600 candidate-row checkpoint with explicit task grouping, label strength, evidence provenance, and missing-view masks.
 
-This does not make the dataset trainable yet. Candidate count alone is not dataset quality. The 60-task set now proves source-backed task scale, candidate-density feasibility, partial tool-derived object-identity extraction, guard/CFG and callback/API extraction, and limited rule validation. It still needs broader Joern-first AST/CFG/DDG/callback extraction, stronger lifecycle/API evidence, CodeQL validation where buildable, and stronger tool-backed label coverage before any serious model-training claim.
+This does not make the dataset trainable yet. Candidate count alone is not dataset quality. The 60-task set now proves source-backed task scale, candidate-density feasibility, partial tool-derived object-identity extraction, guard/CFG and callback/API extraction, and limited rule validation. It still needs broader Joern-first AST/CFG/DDG/callback extraction, stronger lifecycle/API evidence, mandatory CodeQL validation-attempt records for applicable candidate/rule pairs, and stronger tool-backed label coverage before any serious model-training claim.
 
 Current 20-task multi-view artifacts include:
 
@@ -196,7 +196,7 @@ Immediate evidence-grounding work:
 
 - make Joern the primary scalable AST/CFG/DDG/callback representation extractor
 - keep Coccinelle as the Linux lifecycle/API semantic-pattern lane
-- use CodeQL validators only for candidate-level lifecycle protocol validation when a buildable database exists
+- use CodeQL validators as the primary evidence-level validator for candidate-level lifecycle protocol rules; blocked builds become `rule_unknown`, not skipped validation
 - add wrapper/API ontology mapping, callback handoff rules, generalized RCU deferred-release rules, and object-identity extraction
 - keep dynamic-oracle and reproducer evidence as the strongest label lane, but do not block all static conditional labels on dynamic reproduction
 - report candidate count, task count, label strength, and missing-view coverage together; candidate count alone is not dataset quality
@@ -238,7 +238,7 @@ The system must not require humans to validate 20k candidate locations one by on
 - [Dataset Strategy](docs/project/VULNSIGNAL_DATASET_STRATEGY.md)
 - [Model Strategy](docs/project/VULNSIGNAL_MODEL_STRATEGY.md)
 - [Ground Truth Policy](docs/project/VULNSIGNAL_GROUND_TRUTH_POLICY.md)
-- [CodeQL Fact Schema](docs/project/VULNSIGNAL_CODEQL_FACT_SCHEMA.md)
+- [CodeQL Validation Schema](docs/project/VULNSIGNAL_CODEQL_VALIDATION_SCHEMA.md)
 - [Dataset Generation Knowledge](docs/project/VULNSIGNAL_DATA_GENERATION_KNOWLEDGE.md)
 - [Tool-Derived Normalization Policy](docs/project/VULNSIGNAL_TOOL_DERIVED_NORMALIZATION_POLICY.md)
 - [Alignment Checklist](docs/project/VULNSIGNAL_ALIGNMENT_CHECKLIST.md)

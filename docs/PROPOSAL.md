@@ -2,7 +2,7 @@
 
 ## Introduction
 
-VulnSignal proposes a tool-grounded dataset and deep-learning pipeline for vulnerability research. The project does not train a generic vulnerable/non-vulnerable function classifier. Instead, it learns to rank suspicious source-code locations inside a real vulnerability-research task, predict likely protocol or security-rule candidates, select supporting evidence, and report uncertainty when proof is incomplete. Tool-grounded means labels and evidence come from CodeQL, rule checkers, crashes, reproducers, fuzz tests, or patch-confirmed behavior. At inference time, the model produces tool-grounded evidence for ranking; validation truth still requires checker/oracle validation or an explicit `UNKNOWN`.
+VulnSignal proposes a tool-grounded dataset and deep-learning pipeline for vulnerability research. The project does not train a generic vulnerable/non-vulnerable function classifier. Instead, it learns to rank suspicious source-code locations inside a real vulnerability-research task, predict likely protocol or security-rule candidates, select supporting evidence, and report uncertainty when proof is incomplete. Tool-grounded means labels and evidence come from CodeQL validation attempts, rule checkers, crashes, reproducers, fuzz tests, or patch-confirmed behavior. At inference time, the model produces evidence-grounded ranking; validation truth still requires validator/oracle evidence or an explicit `UNKNOWN`.
 
 The initial vulnerability-family focus is C/C++ object lifecycle, concurrency, and memory-safety bugs. The first pilot emphasizes Linux-style object lifetime and refcount patterns, including use-after-free, publish-after-free, missing acquire/release, cancel/flush-before-destroy, and related concurrency-sensitive lifecycle rules. After the first pilot validates the dataset and evidence pipeline, the initial expansion may add bounds checks, double-free, null/error-path cleanup, and parser/input-validation memory-safety families.
 
@@ -22,6 +22,8 @@ validation outputs:
 ```
 
 The model is a proposer, not a judge. CodeQL/checker results, dynamic oracles, evidence-backed patch behavior, or explicit `UNKNOWN` determine label strength.
+
+CodeQL is the primary validation tool for evidence level. For every candidate with an applicable lifecycle/security rule, the pipeline should attempt CodeQL validation first. If CodeQL runs, the candidate receives `rule_matched` or `rule_not_matched`. If CodeQL cannot run because of build metadata, Kconfig, architecture, generated-header, dependency, or toolchain problems, the candidate receives `rule_unknown` with a blocker reason. This is not an optional validation skip; it is an explicit evidence-level outcome.
 
 ## Problem Statement/Background/Motivation/Related Works
 
@@ -107,7 +109,7 @@ new source snapshot
   -> candidate generator
   -> source window extractor
   -> Joern/Coccinelle/parser-backed fact builders
-  -> optional CodeQL/checker validator, when buildable
+  -> CodeQL/checker validation attempt for applicable rules
   -> optional agent-view generator
   -> candidate ranker
   -> top-k review packet
@@ -157,7 +159,7 @@ VulnSignal is not one downloaded vulnerable/non-vulnerable dataset. It is a deri
 | Source family | Original artifacts | VulnSignal use | Admission rule |
 | --- | --- | --- | --- |
 | Executable-oracle bugs | Public OSS-Fuzz/ClusterFuzz disclosed issues; Magma-style benchmark tasks after review | Primary train/evaluation seeds | Strong only when source snapshot, reproducer/fuzz input, build/test command, and pre-patch FAIL / post-patch PASS evidence are available. |
-| CodeQL/checker tasks | Selected source snapshots plus VulnSignal CodeQL/lifecycle/security rules | Primary conditional labels | Conditional when CodeQL database metadata, query/rule ID, normalized facts, source anchors, and `rule_matched` / `rule_not_matched` / `rule_unknown` result are present. |
+| CodeQL/checker tasks | Selected source snapshots plus VulnSignal CodeQL/lifecycle/security rules | Primary validation/evidence-level labels | Conditional when CodeQL database metadata, query/rule ID, source anchors, and `rule_matched` / `rule_not_matched` / `rule_unknown` result are present. If CodeQL cannot run, the row is still admitted only with explicit `rule_unknown` and blocker provenance. |
 | Patch/advisory sources | OSV, GHSA, CVEfixes, MoreFixes, project security patches | Candidate expansion and weak provenance | Weak or UNKNOWN unless upgraded by checker/oracle/before-after evidence. Patch hunk alone is never strong truth. |
 | Held-out tasks | CyberGym-style packets or separate benchmark tasks | Evaluation only by default | Keep held out unless an uncontaminated split is explicit. |
 
@@ -196,7 +198,7 @@ Each training example is a candidate-level multi-view record. The primary unit i
 
 Source windows are not read directly from raw repository files by the model. A preprocessing step extracts a bounded file/function/line region, tokenizes it, adds line-position features, and marks the candidate span. The model consumes this prepared token/line sequence. Protocol/API event sequences capture ordered lifecycle or security-relevant events around a candidate, such as acquire, release, refcount update, publish, cancel work, or destroy. AST/expression facts capture syntax-level call and expression structure. CFG/order facts capture branch/order structure around the candidate. DFG/DDG/dataflow facts capture def-use, value-flow, alias, and object-flow support when a tool can extract them. Structured fact/path records capture typed facts and relations, such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Task context is consumed as short text. Optional agent-view JSONL data may be consumed only when the same agent-view generator is available during inference and does not include hidden label truth. This allows the model to support source-code-only mode, tool-grounded mode, and multi-view mode without changing the dataset unit.
 
-AST, CFG, and DFG are therefore not optional decoration. They are core structural views for multi-view learning. They are marked as missing when the tool lane is unavailable, and they become stronger model inputs only when produced by CodeQL, Joern, SVF, Clang/LLVM, or another parser-backed analysis tool. The current smoke implementation has partial AST/expression facts from CodeQL, selected CFG/DDG/callback facts from Joern, and missing-view masks for candidates that do not yet have graph extraction. It should not claim full AST+CFG+DFG coverage until these views are generated for the intended candidate set.
+AST, CFG, and DFG are therefore not optional decoration. They are core structural views for multi-view learning. They are marked as missing when the representation lane is unavailable, and they become stronger model inputs only when produced by Joern, SVF, Clang/LLVM, or another parser-backed analysis tool. CodeQL output is reserved for validation/evidence-level records by default, not as the primary representation source. The current smoke implementation still contains earlier CodeQL-derived representation artifacts, but the forward path should not depend on CodeQL for representation coverage. It should not claim full AST+CFG+DFG coverage until these views are generated for the intended candidate set.
 
 These views should stay separate in the dataset and be fused in the model. A Joern CPG may be the source artifact for multiple structural views, but VulnSignal should still emit separate AST, CFG, DFG/DDG, callback, event, and rule-evidence records when possible. This keeps ablations honest and lets the model learn which structural evidence actually improves candidate ranking.
 
@@ -210,7 +212,7 @@ The first scalable implementation should use **Joern/code property graphs** as t
 
 For Linux-specific protocol checks, **Coccinelle** can be used as a supplemental tool because the Linux kernel already supports `coccicheck`, semantic patches, and report-mode output with file/line/column locations. Coccinelle results may generate candidate locations or supporting evidence, but they are not final truth without a recorded rule, source anchor, and validation policy.
 
-**CodeQL custom C/C++ queries** are now the validator lane, not the default representation backbone. CodeQL validators implement lifecycle protocol rules and attach candidate-level `rule_matched`, `rule_not_matched`, or `rule_unknown` records when a source view is buildable as a CodeQL database. Canonical validator queries are stored in `validators/codeql/`; smoke queries under `reports/` are experimental. **SVF/LLVM** remains important for deeper pointer/value-flow and alias-sensitive extraction when buildable LLVM bitcode is available. **Tree-sitter** may help with lightweight source navigation, but it should not be treated as semantic evidence because it primarily provides concrete syntax trees. **Clang LibTooling/AST Matchers** remains a fallback for compiler AST-level extraction when a CodeQL query is not expressive enough.
+**CodeQL custom C/C++ queries** are the primary validation tool for evidence level, not the default representation backbone. CodeQL validators implement lifecycle protocol rules and attach candidate-level `rule_matched`, `rule_not_matched`, or `rule_unknown` records. A blocked CodeQL run must be recorded as `rule_unknown` with blocker provenance rather than silently skipped. Canonical validator queries are stored in `validators/codeql/`; smoke queries under `reports/` are experimental. **SVF/LLVM** remains important for deeper pointer/value-flow and alias-sensitive extraction when buildable LLVM bitcode is available. **Tree-sitter** may help with lightweight source navigation, but it should not be treated as semantic evidence because it primarily provides concrete syntax trees. **Clang LibTooling/AST Matchers** remains a fallback for compiler AST-level extraction when a CodeQL query is not expressive enough.
 
 Rejected extraction sources include grep-only matching, regex-only parser mimicry, unanchored LLM summaries, and manually invented protocol traces. If an event cannot be tied to a source file, function, line range, extraction tool, and extraction rule ID, it should not be used as tool-grounded data.
 
@@ -224,6 +226,7 @@ Required derived files:
 - `source_windows.jsonl`: bounded source snippets and token windows for each candidate.
 - `protocol_api_sequences.jsonl`: ordered lifecycle/API event sequences keyed by candidate, source anchor, extraction tool, and extraction rule ID.
 - `structured_facts_paths.jsonl`: normalized fact/path records such as object-flow links, call edges, dataflow edges, path nodes, and rule hits keyed by fact ID and source anchor.
+- `codeql_validation_results.jsonl`: candidate/rule validation-attempt records from CodeQL, including `rule_matched`, `rule_not_matched`, or `rule_unknown` plus blocker provenance when validation cannot run.
 - `oracle_runs.jsonl`: executable evidence rows such as command, exit code, sanitizer/crash output, pre-patch result, post-patch result, and reproducibility status.
 - `oracle_candidate_links.jsonl`: links between oracle artifacts and candidate locations, including link strength, link method, evidence references, and limitations.
 - `validation_guidance_labels.jsonl`: optional hidden supervision for guidance quality, derived from historical crashes, reproducers, fuzz targets, checker runs, or patch-confirmed before/after behavior.
@@ -436,7 +439,7 @@ where $\alpha$ is a tunable mixing weight.
 Auxiliary losses:
 
 - rule/object classification cross-entropy trains the rule-family head and affected-object head when the dataset identifies the violated rule or implicated object.
-- evidence fact selection binary cross-entropy trains the evidence head to select supporting CodeQL/checker facts, path nodes, crash frames, or patch-linked facts from the candidate's evidence set.
+- evidence fact selection binary cross-entropy trains the evidence head to select supporting Joern/Coccinelle facts, CodeQL/checker validation records, path nodes, crash frames, or patch-linked facts from the candidate's evidence set.
 - validation-guidance classification or multilabel binary cross-entropy trains the guidance head only when historical oracle links identify a useful validation target, entrypoint, sanitizer/checker direction, or abstention decision.
 - UNKNOWN/confidence calibration or abstention-style objective trains the model to lower confidence when evidence is incomplete, conflicting, or outside the checker/oracle coverage.
 
@@ -505,7 +508,8 @@ Inference inputs:
 - configured vulnerability-family set; by default, all supported families within the VulnSignal scope
 - task brief, rule family, crash/advisory text, or checker question when available
 - generated candidate-location rows with source windows
-- CodeQL/checker fact rows if the evaluated model was trained to use them
+- Joern/Coccinelle representation rows if the evaluated model was trained to use structural/event views
+- CodeQL/checker validation-attempt rows for applicable rules, with `rule_unknown` and blocker reason when validation cannot run
 - optional agent views if the evaluated model was trained to use them
 
 Hidden evaluation-only fields:
@@ -545,7 +549,7 @@ Required baselines:
 - API-token/source-text ranker
 - CodeQL path/checker-only ranking
 
-Evaluation must report results by source family, rule family, project split, label strength, and availability of CodeQL/checker facts.
+Evaluation must report results by source family, rule family, project split, label strength, availability of Joern/Coccinelle representation views, and CodeQL/checker validation-attempt outcomes.
 
 Mixed-strength data must be reported explicitly. Overall metrics are not enough: VulnSignal should show performance separately for `dynamic`, `codeql_conditional`, `patch_confirmed_weak`, `weak`, and `UNKNOWN` rows. Weak or UNKNOWN rows should not be used to claim final vulnerability-detection accuracy.
 
@@ -608,7 +612,8 @@ Risks and mitigations:
 - Build source snapshot ingestion.
 - Build candidate generator.
 - Build source-window extractor.
-- Integrate CodeQL/checker fact generation when available.
+- Integrate Joern/Coccinelle representation generation.
+- Integrate CodeQL/checker validation-attempt generation for applicable rules.
 - Add optional agent-view generation.
 - Emit top-k review packets with selected evidence, uncertainty, and validation guidance.
 
@@ -645,7 +650,7 @@ Primary project docs:
 - `docs/project/VULNSIGNAL_VISION.md`
 - `docs/project/VULNSIGNAL_DATASET_STRATEGY.md`
 - `docs/project/VULNSIGNAL_MODEL_STRATEGY.md`
-- `docs/project/VULNSIGNAL_CODEQL_FACT_SCHEMA.md`
+- `docs/project/VULNSIGNAL_CODEQL_VALIDATION_SCHEMA.md`
 - `docs/project/VULNSIGNAL_GROUND_TRUTH_POLICY.md`
 - `docs/slides/vulnsignal_dataset_development.html`
 - `docs/slides/vulnsignal_compact_visual_deck.html`
@@ -663,7 +668,8 @@ Candidate original data sources:
 Implementation resources:
 
 - Python and PyTorch for model prototypes
-- CodeQL for fact extraction and checker-backed conditional labels
+- Joern/Coccinelle for scalable representation extraction
+- CodeQL for primary evidence-level validation and checker-backed conditional labels
 - Git/source indexing tools for source-window and candidate generation
 - Earlier object-lifetime scripts and reports for object-lifetime vocabulary and evidence-packet discipline
 
@@ -675,7 +681,7 @@ Engineering-oriented research prototype. The work builds a dataset pipeline, inf
 
 ## What is your data source?
 
-The data source is a derived VulnSignal dataset built from public original artifacts: OSS-Fuzz/ClusterFuzz public cases, CodeQL/checker-generated tasks, OSV/GHSA/CVEfixes/MoreFixes metadata for weak candidate expansion, and held-out CyberGym-style tasks for evaluation only by default.
+The data source is a derived VulnSignal dataset built from public original artifacts: OSS-Fuzz/ClusterFuzz public cases, Joern/Coccinelle-derived candidate representations, CodeQL/checker validation-attempt tasks, OSV/GHSA/CVEfixes/MoreFixes metadata for weak candidate expansion, and held-out CyberGym-style tasks for evaluation only by default.
 
 ## Summarize the status of your data and what cleaning is needed.
 
@@ -683,7 +689,7 @@ The repository has object-lifetime evidence and VulnSignal strategy docs, but no
 
 ## Summarize the structure of your data and what models/techniques work with it.
 
-The primary unit is `(task_instance, candidate_location)`. Each task has many candidate source windows, optional CodeQL/checker facts, optional context, optional agent views, and separate labels. Suitable techniques include source-code encoders, fact/path encoders, cross-view attention, listwise/pairwise ranking, multi-task auxiliary heads, and calibration/abstention objectives.
+The primary unit is `(task_instance, candidate_location)`. Each task has many candidate source windows, Joern/Coccinelle representation views, CodeQL/checker validation-attempt records for applicable rules, optional context, optional agent views, and separate labels. Suitable techniques include source-code encoders, fact/path encoders, cross-view attention, listwise/pairwise ranking, multi-task auxiliary heads, and calibration/abstention objectives.
 
 ## What is your overall goal with this project?
 

@@ -4,7 +4,7 @@
 
 ```text
 The model proposes.
-The checker/oracle validates.
+CodeQL/checkers/oracles validate evidence level.
 The dataset stores the full evidence chain.
 ```
 
@@ -13,15 +13,16 @@ The dataset stores the full evidence chain.
 ```mermaid
 flowchart TD
     A[Real Source Repository] --> B[Task Instance Builder]
-    A --> C[CodeQL Database Builder]
-    C --> D[CodeQL Fact Queries]
+    A --> C[Joern/Coccinelle Static Extractors]
+    A --> D[CodeQL Validator Attempt]
 
     B --> E[Task Instance]
+    C --> E
     D --> E
 
     E --> F[Candidate Generator]
     F --> F1[Crash Stack Neighborhood]
-    F --> F2[CodeQL Alert Paths]
+    F --> F2[Joern Graph/Call Neighbors]
     F --> F3[Call Graph Neighborhood]
     F --> F4[Dataflow Neighborhood]
     F --> F5[Historical Fix Retrieval]
@@ -46,7 +47,7 @@ flowchart TD
     H4 --> I
     H5 --> I
 
-    I --> I1[CodeQL Rule Check]
+    I --> I1[CodeQL Primary Validation]
     I --> I2[Lifecycle Protocol Checker]
     I --> I3[Dynamic Oracle: ASan/UBSan/Fuzzer/Syzkaller/KUnit]
     I --> I4[Human Audit Evidence for Hard Cases, Not Oracle]
@@ -67,31 +68,31 @@ Creates a real vulnerability-research task from a real project snapshot.
 
 Fields include project, repository snapshot, vulnerable/pre-patch commit, fixed/post-patch commit when available, build/test metadata, crash report or sanitizer stack when available, source sections, and optional patch metadata for training only.
 
-### 2. CodeQL Fact Backbone
+### 2. Representation Extraction Backbone
 
-Extracts semantic facts from real code: function calls, source lines, AST nodes, local/global data flow, taint paths, free/destroy events, ref acquire/release events, async publish/cancel events, lock/RCU events, and alias candidates.
+Extracts model-facing representations from real code without requiring full compilation by default. Joern provides AST, CFG, DDG/dataflow-like, callgraph, callback, and graph-neighborhood views. Coccinelle provides Linux lifecycle/API semantic-pattern evidence. CodeQL is not the default representation backbone.
 
 ### 3. Candidate Generator
 
-Builds many candidate locations per task from sanitizer stack frames, CodeQL source/sink paths, functions near crash or patch, call graph neighborhoods, suspicious API usage, and historical similar fixes.
+Builds many candidate locations per task from sanitizer stack frames, functions near crash or patch, Joern callgraph/graph neighborhoods, Coccinelle lifecycle/API evidence, suspicious API usage, and historical similar fixes.
 
 ### 4. Multi-View Neural Ranker
 
 Primary model, not an LLM-first design.
 
-Inputs: source-code slice, CodeQL fact tokens, graph/fact paths, optional error/sanitizer context, retrieved historical fixes, lifecycle/protocol rule candidates.
+Inputs: source-code slice, Joern structural facts, Coccinelle lifecycle/API events, graph/fact paths, CodeQL validation-attempt records, optional error/sanitizer context, retrieved historical fixes, lifecycle/protocol rule candidates.
 
 Outputs: suspiciousness score, predicted protocol rule, affected object, relevant evidence facts, mutation/test guidance, UNKNOWN/confidence.
 
 ### 5. Validation Layer
 
-The model output is checked. Validation result is PASS, FAIL, or UNKNOWN. UNKNOWN is first-class, not a failure.
+The model output is checked. CodeQL is the primary validation tool for candidate evidence level and emits `rule_matched`, `rule_not_matched`, or `rule_unknown`. A blocked CodeQL run is stored as `rule_unknown` with blocker provenance. Dynamic oracle results may still use pre-patch FAIL / post-patch PASS. UNKNOWN is first-class, not a failure.
 
-Human audit may add review evidence for hard cases, but human or LLM review is not an oracle by itself. Final truth still requires a dynamic oracle, CodeQL-backed conditional rule check, patch-confirmed before/after behavior tied to evidence, or explicit UNKNOWN.
+Human audit may add review evidence for hard cases, but human or LLM review is not an oracle by itself. Final truth still requires a dynamic oracle, CodeQL/checker validation result, patch-confirmed before/after behavior tied to evidence, or explicit UNKNOWN.
 
 ### 6. Dataset Feedback
 
-Stores every result as evidence: model proposal, CodeQL facts, checker result, dynamic oracle result, final label source, explanation, and limitations.
+Stores every result as evidence: model proposal, Joern/Coccinelle representation facts, CodeQL validation result, checker result, dynamic oracle result, final label source, explanation, and limitations.
 
 ## Architecture boundary
 

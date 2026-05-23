@@ -20,22 +20,22 @@ Examples:
 - syzkaller reproducer triggers kernel bug
 - KUnit/PoC triggers failure condition
 
-### Level 2 - CodeQL-backed conditional truth
+### Level 2 - CodeQL-backed conditional validation
 
 Strong, but conditional.
 
 Example:
 
 ```text
-Given CodeQL facts F and lifecycle rule R,
-candidate C violates rule R.
+Given CodeQL validator V and lifecycle rule R,
+candidate C has rule_matched / rule_not_matched / rule_unknown under R.
 ```
 
 Output:
 
-- PASS
-- FAIL
-- UNKNOWN
+- rule_matched
+- rule_not_matched
+- rule_unknown
 
 ### Level 3 - Patch-confirmed behavior
 
@@ -59,7 +59,7 @@ The following cannot be final ground truth:
 
 UNKNOWN is a valid result.
 
-A case should be UNKNOWN when CodeQL cannot resolve object identity, source is unavailable, dynamic reproducer is missing, rule does not apply, proof path is incomplete, or sanitizer result is non-deterministic.
+A case should be UNKNOWN when CodeQL validation is blocked or returns `rule_unknown`, source is unavailable, dynamic reproducer is missing, rule does not apply, proof path is incomplete, or sanitizer result is non-deterministic.
 
 UNKNOWN prevents false precision.
 
@@ -69,7 +69,7 @@ Every label must carry:
 
 ```json
 {
-  "label_value": "PASS|FAIL|UNKNOWN|root_cause|non_root_cause",
+  "label_value": "rule_matched|rule_not_matched|rule_unknown|root_cause|non_root_cause",
   "label_strength": "dynamic|codeql_conditional|patch_confirmed|weak",
   "label_source": "string",
   "evidence_files": ["string"],

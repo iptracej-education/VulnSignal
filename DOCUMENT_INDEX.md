@@ -15,7 +15,7 @@ This index is the entry point for the VulnSignal proposal, strategy documents, d
 - [docs/project/VULNSIGNAL_MODEL_STRATEGY.md](docs/project/VULNSIGNAL_MODEL_STRATEGY.md) - model architecture and loss direction.
 - [docs/project/VULNSIGNAL_DATA_GENERATION_KNOWLEDGE.md](docs/project/VULNSIGNAL_DATA_GENERATION_KNOWLEDGE.md) - accumulated dataset-generation rules, promotion criteria, and scaling lessons.
 - [docs/project/VULNSIGNAL_TOOL_DERIVED_NORMALIZATION_POLICY.md](docs/project/VULNSIGNAL_TOOL_DERIVED_NORMALIZATION_POLICY.md) - normalization policy for tool-derived multi-view model inputs.
-- [docs/project/VULNSIGNAL_CODEQL_FACT_SCHEMA.md](docs/project/VULNSIGNAL_CODEQL_FACT_SCHEMA.md) - normalized fact schema.
+- [docs/project/VULNSIGNAL_CODEQL_VALIDATION_SCHEMA.md](docs/project/VULNSIGNAL_CODEQL_VALIDATION_SCHEMA.md) - CodeQL validation-attempt schema.
 - [docs/project/VULNSIGNAL_ALIGNMENT_CHECKLIST.md](docs/project/VULNSIGNAL_ALIGNMENT_CHECKLIST.md) - required future experiment alignment questions.
 - [docs/feasibility/object_lifetime_pilot_viability/README.md](docs/feasibility/object_lifetime_pilot_viability/README.md) - pilot viability gate for estimating 50-100 object-lifetime/refcount task instances.
 - [docs/feasibility/hardcase_tool_feasibility/README.md](docs/feasibility/hardcase_tool_feasibility/README.md) - hard-case tool feasibility experiment with fixtures, commands, outputs, and validation.

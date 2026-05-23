@@ -38,13 +38,14 @@ Raw fields such as `callee`, `object_expression`, `file`, `function`, and full s
 
 | Representation | Accepted tools | Notes |
 | --- | --- | --- |
-| AST/expression facts | CodeQL, Clang AST, Joern CPG | Used for calls, arguments, member access, source locations, and expression structure. |
-| Object identity facts | CodeQL, SVF, Joern CPG/DDG | Must identify the object through tool-visible expression, value-flow, alias, or graph evidence. |
-| Lifecycle/API event facts | CodeQL, Coccinelle, Joern | Coccinelle can provide semantic API matches, but bounded-window matches are supporting evidence unless a rule policy allows promotion. |
-| CFG/order facts | Joern CFG, CodeQL control-flow APIs | Used for candidate-local order and path constraints. |
-| Dataflow/alias facts | SVF, CodeQL dataflow, Joern DDG/PDG | Required before claiming alias-aware or interprocedural object continuity. |
-| Callback/async graph facts | SVF, CodeQL, Joern CPG/DDG | Required before claiming workqueue, timer, RCU callback, or indirect-call continuity. |
-| Rule results | VulnSignal rule runner over tool facts | Rule instances must reference the tool facts they consumed. |
+| AST/expression facts | Joern CPG, Clang AST | Used for calls, arguments, member access, source locations, and expression structure. CodeQL-derived AST rows may exist in legacy smoke artifacts but are not the forward default. |
+| Object identity facts | Joern CPG/DDG, SVF | Must identify the object through tool-visible expression, value-flow, alias, or graph evidence. |
+| Lifecycle/API event facts | Coccinelle, Joern | Coccinelle can provide semantic API matches, but bounded-window matches are supporting evidence unless a rule policy allows promotion. |
+| CFG/order facts | Joern CFG, Clang/LLVM when available | Used for candidate-local order and path constraints. |
+| Dataflow/alias facts | Joern DDG/PDG, SVF | Required before claiming alias-aware or interprocedural object continuity. |
+| Callback/async graph facts | Joern CPG/DDG, SVF | Required before claiming workqueue, timer, RCU callback, or indirect-call continuity. |
+| CodeQL validation results | CodeQL validators under `validators/codeql/` | Primary validation tool for candidate evidence level. Emits `rule_matched`, `rule_not_matched`, or `rule_unknown`. |
+| Rule results | VulnSignal rule runner over tool facts and CodeQL validation results | Rule instances must reference the tool facts and validation records they consumed. |
 | Dynamic oracle evidence | syzkaller, KASAN, KCSAN, reproducers, fuzz tests | Required for `dynamic` labels. |
 
 ## Joern vs CodeQL Policy
@@ -59,23 +60,26 @@ Coccinelle is the Linux semantic-pattern lane for lifecycle/API events and
 wrapper/API evidence. Tree-sitter or similar parser-backed tools may support
 source-window extraction and lightweight syntax anchors.
 
-CodeQL is the validation lane. It should run only when a candidate source view is
-buildable as a CodeQL database. Canonical CodeQL validators live under
-`validators/codeql/` and attach candidate-level validation records:
+CodeQL is the primary validation tool for determining evidence level. For every
+candidate with an applicable lifecycle/security rule, the pipeline must attempt
+CodeQL validation first. Canonical CodeQL validators live under
+`validators/codeql/` and attach candidate-level validation-attempt records:
 
 - `rule_matched`: expected lifecycle protocol evidence was observed in the candidate window.
 - `rule_not_matched`: the validator ran, but the rule evidence was not observed in the candidate window.
-- `rule_unknown`: CodeQL could not validate the candidate because the database, source view, or required facts were unavailable or incomplete.
+- `rule_unknown`: CodeQL could not validate the candidate because the database, source view, build metadata, Kconfig, architecture, generated headers, dependency, toolchain, or required facts were unavailable or incomplete.
 
 Do not treat CodeQL `rule_not_matched` as globally safe code. It is only a
 rule-scoped result under a specific source snapshot and build configuration.
+Do not treat blocked CodeQL validation as optional or absent. It must be stored
+as `rule_unknown` with a blocker reason.
 
 Implementation priority:
 
 1. Generalize Joern-first AST/CFG/DDG/callback extraction for candidate windows.
 2. Keep Coccinelle lifecycle/API matching as a parser-backed semantic evidence lane.
 3. Store CodeQL validators separately under `validators/codeql/`.
-4. Use CodeQL output for candidate validation flags, label strengthening, and verifier-guided preferences when buildable.
+4. Attempt CodeQL validation first for applicable candidate/rule pairs and store the result in `codeql_validation_results.jsonl`.
 5. Keep every missing or unsupported view as an explicit missing-view mask or `rule_unknown`.
 
 ## Strength Boundary

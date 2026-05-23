@@ -110,12 +110,12 @@ The first dataset must admit tasks only with explicit label strength.
 | Label strength | Admission rule | Expected pilot role |
 | --- | --- | --- |
 | `dynamic` | Reproducer, crash, sanitizer output, source snapshot, fixed snapshot, and pre-patch FAIL / post-patch PASS evidence are available. | Strongest supervision and evaluation. |
-| `codeql_conditional` | VulnSignal CodeQL/lifecycle rule produces source-anchored facts and PASS / FAIL / UNKNOWN under a recorded rule ID. | Main tool-grounded pilot supervision. |
+| `codeql_conditional` | VulnSignal CodeQL/lifecycle validator produces `rule_matched`, `rule_not_matched`, or `rule_unknown` under a recorded rule ID. | Main evidence-level pilot supervision. |
 | `patch_confirmed_weak` | Patch clearly changes lifecycle/refcount protocol, but no reproduced oracle and no completed rule check yet. | Candidate generation and weak supervision only. |
 | `weak` | CVE/advisory/commit text suggests object lifetime but source, line anchors, or rule facts are incomplete. | Discovery queue, not final model truth. |
 | `UNKNOWN` | Source unavailable, build unavailable, object identity unresolved, tool facts incomplete, or rule does not apply cleanly. | Calibration and abstention training/evaluation. |
 
-Do not balance the dataset by inventing non-vulnerable functions. Negatives should come from same-task hard negatives: nearby functions, same-file functions, callgraph/dataflow neighbors, checker PASS rows, and candidate locations near but not equal to the root-cause evidence.
+Do not balance the dataset by inventing non-vulnerable functions. Negatives should come from same-task hard negatives: nearby functions, same-file functions, callgraph/dataflow neighbors, CodeQL/checker `rule_not_matched` rows, and candidate locations near but not equal to the root-cause evidence.
 
 ### 4. Tool evidence feasibility
 
@@ -123,9 +123,10 @@ The source-code evidence can be generated with parser-backed and checker-backed 
 
 | Evidence need | Primary tool | Feasibility | Notes |
 | --- | --- | --- | --- |
-| Source windows | Clang/CodeQL source anchors plus repository checkout | High | Raw source windows remain preserved for audit. |
-| Protocol/API events | CodeQL custom C/C++ queries | High for known lifecycle APIs; medium for custom wrappers | Emit `alloc`, `get`, `put`, `kref_put`, `kfree`, `call_rcu`, `queue_work`, `cancel_work`, `flush_work`, publish/remove, lock/unlock events. |
-| Structured fact/path records | CodeQL C/C++ dataflow/path queries | Medium-high | Good for source anchors, calls, dataflow, path nodes, and rule hits. Hard cases still need UNKNOWN handling. |
+| Source windows | Repository checkout plus parser-backed source-window extractor | High | Raw source windows remain preserved for audit. |
+| Protocol/API events | Coccinelle and Joern queries | High for known lifecycle APIs; medium for custom wrappers | Emit `alloc`, `get`, `put`, `kref_put`, `kfree`, `call_rcu`, `queue_work`, `cancel_work`, `flush_work`, publish/remove, lock/unlock events. |
+| Structured fact/path records | Joern CPG/CFG/DDG exports, SVF when available | Medium-high | Good for source anchors, calls, dataflow-like graph records, path nodes, and callback cues. Hard cases still need UNKNOWN handling. |
+| Evidence-level validation | CodeQL lifecycle validators | Medium | Primary validation tool for candidate evidence level; blocked runs become `rule_unknown`. |
 | Linux semantic patterns | Coccinelle report mode | Medium | Supplemental evidence for known API misuse and wrapper patterns; false positives require audit. |
 | Function pointers / indirect callbacks | SVF pointer analysis, Joern graph exports | Medium | Useful for hard cases, but not first-line truth. |
 | RCU/workqueue async edges | CodeQL/Coccinelle/Joern facts plus rule-specific bridge edges | Medium | Can capture registration and source anchors; cannot prove runtime interleavings alone. |

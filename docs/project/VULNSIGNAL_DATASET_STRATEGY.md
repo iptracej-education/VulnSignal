@@ -25,8 +25,9 @@ VulnSignal is not one downloaded vulnerable/non-vulnerable dataset. It is a deri
 | Source family | Original datasets/artifacts | VulnSignal use | Admission rule |
 | --- | --- | --- | --- |
 | Executable-oracle bugs | OSS-Fuzz/ClusterFuzz public disclosed crash and fix records; Magma-style benchmark tasks after license/provenance review | Primary train/evaluation seeds | Admit as strong only when source snapshot, reproducer or fuzz input, build/test command, and pre-patch FAIL / post-patch PASS evidence are available. |
-| CodeQL/checker tasks | Selected source snapshots plus VulnSignal CodeQL/lifecycle/security rule suite | Primary conditional labels | Admit as conditional when CodeQL database metadata, query/rule ID, normalized fact rows, source anchors, and PASS / FAIL / UNKNOWN result are present. |
+| CodeQL/checker tasks | Selected source snapshots plus VulnSignal CodeQL/lifecycle/security rule suite | Primary validation/evidence-level labels | Admit as conditional when CodeQL database metadata, query/rule ID, source anchors, and `rule_matched` / `rule_not_matched` / `rule_unknown` result are present. A blocked CodeQL validation attempt must be stored as `rule_unknown` with blocker provenance. |
 | Patch/advisory sources | CVEfixes, OSV, MoreFixes, GHSA/project security patches | Candidate expansion and weak provenance | Admit as weak or UNKNOWN unless upgraded by checker/oracle/before-after evidence. Patch hunk alone is never strong truth. |
+| SARD-style synthetic/testcase data | SARD and datasets built from SARD, including CLeVeR-style data | Not planned for the current VulnSignal dataset | SARD is mostly function-level C/C++ examples, while VulnSignal is task/candidate based. Using it would require a separate conversion layer, likely double dataset effort, and risk training the wrong structure. Consider only as a later transfer-risk study after the Linux baseline is stable. |
 | Held-out evaluation tasks | CyberGym-style task packets or separately packaged benchmark tasks | Evaluation only by default | Keep held out unless a separate uncontaminated training split is explicitly declared and reported. |
 
 ## Internet-verified source decision
@@ -72,12 +73,31 @@ VulnSignal should accept imbalanced data. It should not manufacture a globally b
 Required negative/counterexample sources:
 
 - same-task candidates with dynamic-oracle non-root-cause status
-- CodeQL/checker `PASS` candidates under the same rule
+- CodeQL/checker `rule_not_matched` candidates under the same rule
 - same-file and same-function hard negatives near the crash frame or patch hunk
 - callgraph/dataflow neighbors that share context but lack evidence
 - explicit `UNKNOWN` rows when proof is incomplete
 
 Training handles imbalance with pairwise/listwise ranking groups, hard-negative sampling, per-task weighting, and calibration reporting. Evaluation reports top-k localization, evidence-chain overlap, and UNKNOWN calibration, not binary accuracy on a balanced class table.
+
+The main target is candidate-level relevance, not many vulnerability classes:
+
+- positive or relevant candidate
+- negative or non-root-cause candidate
+- `UNKNOWN` when evidence is insufficient
+
+Negative subtype metadata is required for sampling, weighting, evaluation, and audit. It must not be treated as separate vulnerability classes.
+
+| Subtype | Meaning | Training use |
+| --- | --- | --- |
+| `easy_negative` | Wide or low-evidence contrast candidate | Low weight, small margin |
+| `weak_nearby_hard_negative` | Near patch/crash/source evidence but not validated | Hard-negative sampling, not global safe-code truth |
+| `same_api_hard_negative` | Near the same API/sink/tool fact family | Same-rule/API contrast |
+| `checker_not_matched_hard_negative` | Rule-scoped CodeQL/checker `rule_not_matched` candidate | Higher weight, rule-scoped negative only |
+| `fixed_version_analog` | Fixed-side analog or patched-away candidate context | Avoid leakage; useful for controlled contrast |
+| `unknown_or_unproven` | Insufficient evidence | Train abstention/calibration, not negative classification |
+
+Initial ranking batches should be task grouped. A practical starting group is one positive candidate, one easy/wide negative, two hard negatives, and two verified or conditional hard negatives when available. Negatives should rotate across same task, same rule family, same API/sink, same file/function, same subsystem, fixed-version analogs, and CodeQL/checker `rule_not_matched` candidates. Do not generate all possible positive-negative pairs; cap positive reuse per epoch.
 
 ## Initial scale feasibility
 
@@ -128,18 +148,49 @@ first_multi_family_dataset:
   CodeQL/checker conditional labels plus reproduced dynamic-oracle evidence
 ```
 
-Current status from the 20-task smoke set:
+20-task expansion baseline:
 
 ```text
 20 task_instances
-151 candidate_locations
-7.55 candidates per task
+692 candidate_locations
+34.6 candidates per task
 6 positive codeql_conditional labels
 12 scoped codeql_conditional_negative labels
+215 UNKNOWN expansion labels
 0 dynamic oracle labels
 ```
 
-This is a smoke proof, not a training-scale dataset. The immediate scale problem is candidate density and evidence quality, not the lack of 1,600 confirmed vulnerabilities. Candidate generation must broaden from patch anchors and weak hard negatives into CodeQL path nodes, same-function windows, same-file related functions, callgraph/dataflow neighbors, wrapper/API seeds, RCU/callback/timer/workqueue anchors, and tool-near hard negatives.
+Current 60-task materialization status:
+
+```text
+411 reusable NVD/kernel.org discovery-pool candidates
+90 top automated discovery candidates selected for validation
+29 automated discovery candidates patch-validated for materialization
+11 earlier next-batch candidates patch-validated for materialization
+40 new validated admission-backlog tasks materialized
+60 materialized task_instances
+269 patch-anchored candidate_locations
+534 weak nearby hard-negative candidate_locations
+803 candidate_locations with hard negatives
+2,321 expanded candidate_locations
+2,321 expanded source_windows
+589 CodeQL/Coccinelle operation-role facts
+1,362 CodeQL representation facts from 10 existing DB snapshots
+421 AST/expression facts across 4 tasks
+421 object-identity facts across 4 tasks, with 349 tool-expression identities and 72 unresolved identities
+732 CodeQL guard/CFG-order rows
+30 CodeQL callback/async API rows
+0 CodeQL local-dataflow rows in the first representation pass
+15 60-task rule-validation rows
+2 codeql_conditional positive labels
+4 scoped codeql_conditional_negative labels
+100 Coccinelle lifecycle matches
+68 Coccinelle wrapper-candidate matches
+166 candidates with at least one non-source tool-grounded view
+65 candidates blocked before materialization because current lifecycle signals were missing
+```
+
+This is still a smoke proof, not a training-scale dataset. The first expansion pass added historical CodeQL lifecycle-fact anchors, CodeQL-nearby weak contrast candidates, and patch-context candidates, increasing the 20-task set from 151 to 692 rows without promoting label truth. The 60-task expansion now passes the 1,600-row candidate-count checkpoint by adding patch-context rows, parser-backed Coccinelle lifecycle/wrapper candidates, and Kbuild-backed CodeQL validation candidates. Earlier CodeQL representation experiments showed that compile-backed DBs can emit AST/expression, object-identity, guard/CFG-order, and callback/async API views, but the forward dataset path should not depend on CodeQL for representation coverage. The immediate scale problem is evidence quality: Joern-first structural extraction, Coccinelle lifecycle/API coverage, mandatory CodeQL validation-attempt records for applicable candidate/rule pairs, callback-aware rules, and stronger tool-backed label coverage are still missing for most 60-task candidates.
 
 ## Preprocessing pipeline
 
@@ -150,7 +201,8 @@ original dataset record
   -> source_acquisition_manifest.jsonl
   -> task_instances.jsonl
   -> candidate_locations.jsonl
-  -> codeql_facts.jsonl / oracle_runs.jsonl
+  -> joern_structural_facts.jsonl / lifecycle_api_events.jsonl
+  -> codeql_validation_results.jsonl / oracle_runs.jsonl
   -> labels.jsonl
 ```
 
@@ -158,16 +210,18 @@ Required preprocessing outputs:
 
 - `source_acquisition_manifest.jsonl`: original dataset name, original record ID, source URL/path, revision IDs, license/usage note, artifact hashes, and split eligibility.
 - `task_instances.jsonl`: one vulnerability-research task with source snapshot, source family, build/test metadata, oracle/checker availability, and split policy.
-- `candidate_locations.jsonl`: many file/function/line candidates per task, generated from crash frames, patch hunks, CodeQL paths, callgraph neighbors, same-file hard negatives, or API/rule seeds.
-- `codeql_facts.jsonl`: normalized fact/path records keyed by fact ID and source anchor.
+- `candidate_locations.jsonl`: many file/function/line candidates per task, generated from crash frames, patch hunks, Joern callgraph/graph neighbors, same-file hard negatives, Coccinelle lifecycle/API evidence, or API/rule seeds.
+- `joern_structural_facts.jsonl`: AST/CFG/DDG/callgraph/callback structural records keyed by fact ID and source anchor.
+- `lifecycle_api_events.jsonl`: Coccinelle/Joern lifecycle and API event records keyed by candidate/source anchor.
+- `codeql_validation_results.jsonl`: CodeQL validation-attempt records for applicable candidate/rule pairs, with `rule_matched`, `rule_not_matched`, or `rule_unknown` and blocker provenance.
 - `oracle_runs.jsonl`: executable evidence rows such as pre-patch result, post-patch result, command, exit code, sanitizer/crash output, and reproducibility status.
 - `labels.jsonl`: candidate-level label value, label strength, label source, evidence references, limitations, and explicit `UNKNOWN` when proof is incomplete.
 
-The first model consumes derived records, not the raw original datasets directly. Source windows become bounded token sequences. CodeQL/checker output becomes typed fact/path records. Candidates are grouped by `task_id` for pairwise or listwise ranking.
+The first model consumes derived records, not the raw original datasets directly. Source windows become bounded token sequences. Joern/Coccinelle output becomes typed representation records. CodeQL/checker output becomes validation/evidence-level records. Candidates are grouped by `task_id` for pairwise or listwise ranking.
 
 Candidate locations are pointers to existing source regions. They are not mutated code variants, generated patches, or alternate programs. A candidate row says, in plain English: "for this task, inspect this file/function/line window." Mutation guidance may be a later model output, but mutation is not how candidate rows are created.
 
-Candidate buckets are evidence-dependent, not mandatory. A dynamic-oracle task may provide crash-frame candidates and reproducer evidence. A patch/advisory task may provide patch-hunk candidates but no executable oracle. A CodeQL/checker task may provide path-node and rule-hit candidates but no crash trace. Missing evidence should result in no bucket rows or explicit `UNKNOWN`, not fabricated candidates.
+Candidate buckets are evidence-dependent, not mandatory. A dynamic-oracle task may provide crash-frame candidates and reproducer evidence. A patch/advisory task may provide patch-hunk candidates but no executable oracle. Joern/Coccinelle may provide graph-neighbor, lifecycle/API, callback, and same-function candidates. CodeQL/checker validation provides evidence-level flags for applicable candidate/rule pairs. Missing evidence should result in no bucket rows or explicit `UNKNOWN`, not fabricated candidates.
 
 Typical candidate sources per task:
 
@@ -177,8 +231,10 @@ Typical candidate sources per task:
 | Patch hunk windows | 0-5 | Fix commit or patch hunk |
 | Same-function nearby windows | 5-10 | Source snapshot and candidate anchor |
 | Same-file related functions | 10-20 | Source snapshot and parser/index |
-| CodeQL path nodes / checker hits | 0-10 | CodeQL database, query, and normalized facts |
-| Callgraph/dataflow neighbors | 10-15 | Static analysis facts or source index |
+| Joern path/graph/call neighbors | 0-15 | Joern CPG/CFG/DDG/callgraph facts |
+| Coccinelle lifecycle/API hits | 0-10 | Coccinelle semantic pattern output with source anchors |
+| CodeQL validation hits | 0-10 | CodeQL database, validator query, and candidate-level validation result |
+| Callgraph/dataflow neighbors | 10-15 | Joern/static analysis facts or source index |
 | Hard negatives near evidence | 10+ | At least one positive/anchor location |
 
 These counts are planning ranges, not guarantees. The first multi-family target assumes a mix of source families so that average candidate count can reach roughly 40-100 per task.
@@ -192,7 +248,8 @@ Required inference inputs:
 - source snapshot for the target project/version
 - task brief, rule family, crash/advisory text, or checker question when available
 - generated candidate-location rows with source windows
-- CodeQL/checker fact rows if the evaluated model was trained to use the fact/path view
+- Joern/Coccinelle representation rows if the evaluated model was trained to use structural/event views
+- CodeQL validation-attempt rows for applicable rules, with `rule_unknown` and blocker reason when CodeQL cannot run
 
 Candidate-location rows should be created by the VulnSignal preprocessing/ranking pipeline before final ranking. Each row points to an existing file/function/line range, records why that range was included, and links to a bounded source snippet. Humans may audit generated candidates, but the project must not rely on humans to hand-create the review queue.
 
@@ -229,16 +286,29 @@ first_multi_family_dataset:
   exhaustive_candidate_rows: explicitly out of scope
 ```
 
-Bulk label strength must come from reproduced dynamic oracles, CodeQL/checker results, and explicit `UNKNOWN`, not from manual row-by-row labeling.
+Bulk label strength must come from reproduced dynamic oracles, CodeQL/checker validation results, and explicit `UNKNOWN`, not from manual row-by-row labeling.
 
 Source windows are the actual code snippets around each candidate row. They are the source-text input to the model and must not include fixed-source text, patch labels, or hidden truth.
 
-CodeQL/checker facts are structured analysis rows such as call edges, dataflow edges, lifecycle events, object identity facts, path nodes, and rule hits. They are attached to candidate rows by fact IDs and source anchors. If these facts are absent, the run is `source_only`; do not describe it as the main tool-grounded model.
+Joern/Coccinelle facts are structured representation rows such as AST nodes, call edges, CFG/DDG edges, lifecycle events, object identity hints, callback candidates, and path nodes. They are attached to candidate rows by fact IDs and source anchors.
+
+CodeQL/checker rows are validation-attempt records. They are attached to candidate/rule pairs as `rule_matched`, `rule_not_matched`, or `rule_unknown`. If CodeQL cannot run, record `rule_unknown` with blocker provenance. Do not silently treat blocked validation as absent or optional.
+
+AST, CFG, and DFG/DDG should be represented as separate candidate-linked views. They should not be collapsed into one generic graph record before training. A tool such as Joern can generate a combined CPG internally, but the dataset should expose separate AST/expression facts, CFG/order facts, DFG/DDG/dataflow facts, callback/async facts, and rule-evidence rows where possible. This gives the model distinct encoders for each representation and gives evaluation clear ablations for source-only, source+AST, source+CFG, source+DFG, source+tool-evidence, and fully fused modes.
+
+Tool priority:
+
+- Joern is primary for scalable AST/CFG/DDG/callgraph/callback representation extraction.
+- Coccinelle is primary for Linux lifecycle/API semantic-pattern extraction.
+- CodeQL is primary for evidence-level validation, not representation extraction. Attempt it first for applicable candidate/rule pairs.
+- A blocked CodeQL run is a `rule_unknown` validation result with a blocker reason, not skipped validation.
+- Joern output should not be treated as validation truth because it is a graph. It becomes stronger only when consumed by a rule policy or cross-checked by CodeQL/checker/oracle evidence.
 
 Optional/source-only baseline:
 
 - source snapshot plus learned or rule-guided candidate proposal only
-- no CodeQL/fact view
+- no Joern/Coccinelle representation view
+- no CodeQL validation result
 - no crash oracle
 - no patch or fixed-source evidence
 
@@ -249,7 +319,42 @@ Evaluation-only fields hidden from the model:
 - oracle result, post-patch behavior, and reproduced/fixed status
 - label source or evidence fields that directly reveal the answer
 
-If the main model uses CodeQL/fact features during training, held-out test tasks must provide the same feature view. Otherwise the run is a `source_only` ablation, not the primary tool-grounded evaluation.
+If the main model uses Joern/Coccinelle representation features during training, held-out test tasks must provide the same feature view. CodeQL validation-attempt rows are required for applicable rules to determine evidence level; blocked validation becomes `rule_unknown`. A run without representation views is a `source_only` ablation, not the primary tool-grounded evaluation.
+
+## Dataset Status Reporting Standard
+
+Every dataset extraction/development status report should start with the same two sections so downstream architecture, model design, training, testing, and evaluation decisions are tied to the actual extraction state.
+
+First, report the base dataset status:
+
+| Data | Required status meaning |
+| --- | --- |
+| task instances | number of admitted task groups |
+| patch/source acquisition | fetch failures and source-window availability |
+| patch-anchored candidates | original patch/source anchors |
+| weak hard negatives | nearby or same-task contrast rows that are not strong safe labels |
+| expanded candidate locations | candidate rows available for task-grouped ranking |
+| source windows | source-text rows available to the source encoder |
+| labels | label count and label-strength distribution |
+| candidate representation index | one scaffold row per `(task_instance, candidate_location)` |
+| candidates with non-source tool views | rows that have at least one AST/event/object/path/rule view beyond source text |
+
+Second, report the updated candidate-level input categories:
+
+| Candidate input category | Downstream connection |
+| --- | --- |
+| source window sequence | source encoder, source-only baseline, candidate-span markers |
+| lifecycle / API event facts | protocol/API event encoder and lifecycle sequence ablation |
+| AST / expression facts | AST/expression encoder and source-token grounding checks |
+| object identity facts | object encoder, affected-object head, object-aware rule validation |
+| CFG / order facts | CFG/order encoder or path-feature ablation |
+| DFG / DDG / dataflow facts | dataflow/path encoder and alias/object continuity validation |
+| callback / async graph facts | callback/async encoder and RCU/workqueue/timer validation |
+| rule evidence / validation | rule/evidence encoder, label promotion, verifier-guided post-training later |
+| task context text | context encoder, task-grouped ranking, split/audit metadata |
+| oracle / patch / optional agent-view evidence | hidden supervision, evaluation evidence, and future agent-view ablation |
+
+Do not report candidate count alone as dataset progress. Each report must make clear which model views are present, which are masked as missing, and which missing views block training, testing, or evaluation claims.
 
 ## Inference pipeline requirement
 
@@ -268,13 +373,13 @@ new source snapshot
   -> top-k review packet
 ```
 
-The runtime pipeline should normalize each available view, not manually connect all views. The model input record should say that source window, AST/expression facts, lifecycle/API events, object identity facts, CFG/order facts, dataflow/alias facts, callback/async facts, and rule evidence belong to the same candidate. Fine-grained relationships among those views are learned by the model unless a tool explicitly emits a relationship for validation.
+The runtime pipeline should normalize each available view, not manually connect all views. The model input record should say that source window, AST/expression facts, lifecycle/API events, object identity facts, CFG/order facts, DFG/DDG/dataflow facts, alias facts, callback/async facts, and rule evidence belong to the same candidate. Fine-grained relationships among those views are learned by the model unless a tool explicitly emits a relationship for validation.
 
 Inference-time outputs:
 
 - ranked candidate source locations
 - source windows
-- attached CodeQL/checker facts when available
+- attached CodeQL/checker validation-attempt records for applicable rules
 - optional agent summaries/hypotheses
 - predicted rule/object/evidence/uncertainty
 - checker `PASS` / `FAIL` / `UNKNOWN` only if a checker is actually run
