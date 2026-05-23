@@ -2,7 +2,7 @@
 
 ## Introduction
 
-VulnSignal proposes a tool-grounded dataset and deep-learning pipeline for vulnerability research. The project does not train a generic vulnerable/non-vulnerable function classifier. Instead, it learns to rank suspicious source-code locations inside a real vulnerability-research task, predict likely protocol or security-rule candidates, select supporting evidence, and report uncertainty when proof is incomplete. Tool-grounded means labels and evidence come from CodeQL, rule checkers, crashes, reproducers, fuzz tests, or patch-confirmed behavior.
+VulnSignal proposes a tool-grounded dataset and deep-learning pipeline for vulnerability research. The project does not train a generic vulnerable/non-vulnerable function classifier. Instead, it learns to rank suspicious source-code locations inside a real vulnerability-research task, predict likely protocol or security-rule candidates, select supporting evidence, and report uncertainty when proof is incomplete. Tool-grounded means labels and evidence come from CodeQL, rule checkers, crashes, reproducers, fuzz tests, or patch-confirmed behavior. At inference time, the model produces tool-grounded evidence for ranking; validation truth still requires checker/oracle validation or an explicit `UNKNOWN`.
 
 The initial vulnerability-family focus is C/C++ object lifecycle, concurrency, and memory-safety bugs. The first pilot emphasizes Linux-style object lifetime and refcount patterns, including use-after-free, publish-after-free, missing acquire/release, cancel/flush-before-destroy, and related concurrency-sensitive lifecycle rules. After the first pilot validates the dataset and evidence pipeline, the initial expansion may add bounds checks, double-free, null/error-path cleanup, and parser/input-validation memory-safety families.
 
@@ -17,7 +17,8 @@ model outputs:
   likely rule, affected object, supporting evidence, and validation guidance
 
 validation outputs:
-  checker/oracle-backed PASS, FAIL, or UNKNOWN
+  CodeQL/checker rule_matched, rule_not_matched, or rule_unknown
+  dynamic-oracle FAIL/PASS when executable evidence exists
 ```
 
 The model is a proposer, not a judge. CodeQL/checker results, dynamic oracles, evidence-backed patch behavior, or explicit `UNKNOWN` determine label strength.
@@ -38,6 +39,8 @@ Recent agentic vulnerability-research systems and benchmarks, such as MDASH-styl
 Earlier object-lifetime work in the source repository showed a clear limitation: ranking code by rough labels, source-text patterns, lightweight object-flow signals, or agreement between language models does not prove that a bug exists. VulnSignal therefore requires each training example to point back to a real source version, a specific code location, machine-checkable facts when available, and validation evidence such as a checker result, crash, reproducer, fuzz test, or explicit `UNKNOWN` when the evidence is incomplete.
 
 Recent source-code representation work also shows that this project should not claim novelty from "source plus graph plus attention" alone. Systems such as CLeVeR use vulnerability descriptions, code/graph representations, representation refinement, and zero-shot-style matching to improve vulnerability representation learning. VulnSignal uses that lesson, but the main research direction is different: tool-grounded evidence is the primary semantic anchor for candidate ranking. Vulnerability-concept descriptions may be added as an auxiliary contrastive view, inspired by CLeVeR, to improve low-sample and family-focused ranking. These descriptions may also include human-authored or LLM-assisted hypotheses when no tool-grounded or public evidence is available, but they remain weak guidance rather than ground truth.
+
+The intended improvement over CLeVeR-style description-supervised representation learning is not description matching alone. VulnSignal combines tool-evidence-grounded representation, Linux task-grouped candidate ranking, verifier-guided post-training from checker/oracle outcomes, and explicit UNKNOWN calibration. SARD-style datasets are not part of the current plan because they are mostly collections of C/C++ functions, while VulnSignal is built around `(task_instance, candidate_location)` records with source snapshots, candidate rows, and tool evidence. Using SARD would likely double dataset-engineering effort and may train the wrong problem structure. The primary dataset foundation remains Linux/CVE task instances with patch/source anchors and tool-derived evidence.
 
 This proposal is not trying to cover every vulnerability class at once. It starts where the repository already has evidence and terminology: object lifecycle, refcount, concurrency, and memory-safety protocols in C/C++ systems code. That scope is narrow enough to define checkable rules, but broad enough to grow beyond a single Linux refcount demonstration.
 
@@ -93,7 +96,7 @@ original dataset record
 
 ### Inference evidence pipeline
 
-This pipeline is used after training on a new source snapshot. It automatically proposes candidate locations, extracts the needed source context and checker facts, ranks the candidates, and produces a small review packet for humans or downstream validation.
+This pipeline is used after training on a new source snapshot. It automatically proposes candidate locations, extracts the needed source context and static tool facts, ranks the candidates, and produces a small review packet for humans or downstream validation.
 
 The default inference mode runs all supported vulnerability families within the configured VulnSignal scope and reports both per-family and merged rankings. Explicit family selection is still supported for cost control, tool availability, focused patch review, controlled evaluation, validation-budget management, and excluding immature families from reported results.
 
@@ -103,7 +106,8 @@ Each top-k review packet should include a ranking rationale. The rationale must 
 new source snapshot
   -> candidate generator
   -> source window extractor
-  -> CodeQL/checker fact builder, when using tool-grounded mode
+  -> Joern/Coccinelle/parser-backed fact builders
+  -> optional CodeQL/checker validator, when buildable
   -> optional agent-view generator
   -> candidate ranker
   -> top-k review packet
@@ -111,13 +115,13 @@ new source snapshot
 
 At inference time, labels, fixed source, patch truth, known root cause, and oracle results are hidden unless the runtime pipeline executes the checker or oracle.
 
-We also keep a source-code-only mode. This mode can be integrated into LLM-agent workflows as a triage assistant that suggests suspicious locations, likely rules, and review questions. Downstream investigators may use VulnSignal's ranked candidates and evidence to construct hypotheses for further investigation, but hypothesis construction is outside the core ranker output. Source-code-only suggestions are not validation; checker/oracle evidence is still required for `PASS`, `FAIL`, or `UNKNOWN` labels.
+We also keep a source-code-only mode. This mode can be integrated into LLM-agent workflows as a triage assistant that suggests suspicious locations, likely rules, and review questions. Downstream investigators may use VulnSignal's ranked candidates and evidence to construct hypotheses for further investigation, but hypothesis construction is outside the core ranker output. Source-code-only suggestions are not validation; CodeQL/checker validation or executable-oracle evidence is still required for stronger labels.
 
-Inference should be reported by mode:
+Inference must be reported by one of three official modes:
 
-- standard tool-grounded inference: known or supported vulnerability families with source windows and tool-derived evidence views. This is the main VulnSignal claim.
-- compositional few/zero-shot inference: a new rule is described using known evidence types, such as acquire, release, callback, lock, dereference, or bounds-check events. This may generalize across familiar evidence schemas but still needs later checker/oracle validation.
-- description-only zero-shot inference: a human-authored or LLM-assisted vulnerability hypothesis is used as the query when tool-grounded evidence or public evidence is unavailable. This can guide hypothesis-based checks and exploratory ranking, but it is not validation and should be reported separately from the main tool-grounded result.
+- `tool_grounded`: source snapshot, generated candidates, source windows, and generated tool facts. This is the strongest and primary VulnSignal claim, but the output remains evidence-grounded ranking until a checker/oracle validates it.
+- `few_shot_description_assisted`: a new rule or family description plus a few positives and hard negatives are used for adaptation. This is useful for adding new vulnerability families, but still needs later tool/checker validation.
+- `description_only_zero_shot`: a human-authored or LLM-assisted vulnerability description is used as a CLeVeR-like query for exploratory ranking. This is not validation and must not be reported as the primary VulnSignal result.
 
 ## Methodology
 
@@ -153,7 +157,7 @@ VulnSignal is not one downloaded vulnerable/non-vulnerable dataset. It is a deri
 | Source family | Original artifacts | VulnSignal use | Admission rule |
 | --- | --- | --- | --- |
 | Executable-oracle bugs | Public OSS-Fuzz/ClusterFuzz disclosed issues; Magma-style benchmark tasks after review | Primary train/evaluation seeds | Strong only when source snapshot, reproducer/fuzz input, build/test command, and pre-patch FAIL / post-patch PASS evidence are available. |
-| CodeQL/checker tasks | Selected source snapshots plus VulnSignal CodeQL/lifecycle/security rules | Primary conditional labels | Conditional when CodeQL database metadata, query/rule ID, normalized facts, source anchors, and PASS / FAIL / UNKNOWN result are present. |
+| CodeQL/checker tasks | Selected source snapshots plus VulnSignal CodeQL/lifecycle/security rules | Primary conditional labels | Conditional when CodeQL database metadata, query/rule ID, normalized facts, source anchors, and `rule_matched` / `rule_not_matched` / `rule_unknown` result are present. |
 | Patch/advisory sources | OSV, GHSA, CVEfixes, MoreFixes, project security patches | Candidate expansion and weak provenance | Weak or UNKNOWN unless upgraded by checker/oracle/before-after evidence. Patch hunk alone is never strong truth. |
 | Held-out tasks | CyberGym-style packets or separate benchmark tasks | Evaluation only by default | Keep held out unless an uncontaminated split is explicit. |
 
@@ -182,27 +186,31 @@ first_multi_family_dataset:
 
 The 300-task target is not credible if interpreted as 300 strong Linux object-lifetime/refcount vulnerabilities from one source. It should be treated as the first multi-family C/C++ dataset target after the object-lifetime pilot validates the pipeline.
 
-The roughly 1,600-sample scale used by related representation-learning systems such as CLeVeR is a useful minimum scale sanity check, but it is not directly comparable to VulnSignal. VulnSignal's unit is a candidate row grouped under a task, not an independent function-level vulnerable/non-vulnerable example. The current smoke dataset has 151 candidate locations across 20 tasks, or about 9% of a 1,600-candidate checkpoint. The next scale step should raise candidate density to roughly 25-50 candidates per task through tool-backed candidate generation before claiming a trainable baseline dataset.
+The roughly 1,600-sample scale used by related representation-learning systems such as CLeVeR is a useful minimum scale sanity check, but it is not directly comparable to VulnSignal. VulnSignal's unit is a candidate row grouped under a task, not an independent function-level vulnerable/non-vulnerable example. The current expanded smoke dataset has 2,321 candidate locations across 60 materialized tasks after adding weak hard negatives, patch-context rows, parser-backed Coccinelle lifecycle/wrapper candidates, and Kbuild-backed CodeQL fact candidates. This passes the 50-75 task and 1,600-row smoke checkpoints, and partial CodeQL/object-identity extraction plus limited rule validation now works, but it is still not a trainable baseline dataset until graph/path facts, broader CodeQL coverage, callback-aware rules, and stronger tool-backed labels are available.
 
 These datasets will be naturally imbalanced and mixed-strength: most candidate locations are not the confirmed root cause, and many tasks will have conditional, weak, or `UNKNOWN` evidence rather than reproduced dynamic proof. This is not an exception to hide; it is the normal shape of real vulnerability-research data. VulnSignal therefore stores label value, label strength, evidence source, limitations, and UNKNOWN reason separately. Later training and evaluation sections mitigate this with task-level ranking losses, label-strength weighting, hard-negative sampling, explicit `UNKNOWN` calibration, and top-k review metrics instead of global balanced binary classification.
 
 ### Model Input Format
 
-Each training example is a candidate-level multi-view record. The primary unit is `(task_instance, candidate_location)`. The model does not consume the whole project as one long sequence. Instead, each candidate can be represented by source window sequences, protocol/API sequences, structured fact/path records, optional graph structure, task context text, and optional agent-view JSONL data. Oracle, fuzz, reproducer, and patch evidence are stored as hidden supervision and evaluation evidence unless the same kind of evidence is generated at inference time.
+Each training example is a candidate-level multi-view record. The primary unit is `(task_instance, candidate_location)`. The model does not consume the whole project as one long sequence. Instead, each candidate can be represented by source window sequences, protocol/API sequences, AST/expression facts, CFG/order facts, DFG/DDG/dataflow facts, structured fact/path records, task context text, and optional agent-view JSONL data. Oracle, fuzz, reproducer, and patch evidence are stored as hidden supervision and evaluation evidence unless the same kind of evidence is generated at inference time.
 
-Source windows are not read directly from raw repository files by the model. A preprocessing step extracts a bounded file/function/line region, tokenizes it, adds line-position features, and marks the candidate span. The model consumes this prepared token/line sequence. Protocol/API event sequences capture ordered lifecycle or security-relevant events around a candidate, such as acquire, release, refcount update, publish, cancel work, or destroy. Structured fact/path records capture typed facts and relations, such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Optional graph structure is built from those structured facts, for example callgraph, dataflow, or object-flow neighborhoods around the candidate. Task context is consumed as short text. Optional agent-view JSONL data may be consumed only when the same agent-view generator is available during inference and does not include hidden label truth. This allows the model to support source-code-only mode, tool-grounded mode, and multi-view mode without changing the dataset unit.
+Source windows are not read directly from raw repository files by the model. A preprocessing step extracts a bounded file/function/line region, tokenizes it, adds line-position features, and marks the candidate span. The model consumes this prepared token/line sequence. Protocol/API event sequences capture ordered lifecycle or security-relevant events around a candidate, such as acquire, release, refcount update, publish, cancel work, or destroy. AST/expression facts capture syntax-level call and expression structure. CFG/order facts capture branch/order structure around the candidate. DFG/DDG/dataflow facts capture def-use, value-flow, alias, and object-flow support when a tool can extract them. Structured fact/path records capture typed facts and relations, such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Task context is consumed as short text. Optional agent-view JSONL data may be consumed only when the same agent-view generator is available during inference and does not include hidden label truth. This allows the model to support source-code-only mode, tool-grounded mode, and multi-view mode without changing the dataset unit.
 
-The dataset should not force every fine-grained relationship into a hand-built graph before the model sees it. The required explicit alignment is candidate-level and provenance-level: task ID, candidate ID, source location, view, tool, extraction rule, and missing-view mask. Each view should still be normalized into generalized semantic fields, such as operation role, API family, operation class, security axis, lifecycle stage, identity status, and rule family, so the model does not only memorize project-specific names. Within that candidate record, cross-attention should learn soft relationships between source tokens, AST/call facts, lifecycle/API events, object-identity facts when available, CFG/order facts, and graph facts. This is similar to parallel language data: sentence pairs are aligned at the example level, while token-to-token alignment is learned. Tool-proven object-operation edges, alias edges, callback edges, and rule validations are still valuable, but they are validation or high-precision auxiliary views, not mandatory hand-authored supervision for every example.
+AST, CFG, and DFG are therefore not optional decoration. They are core structural views for multi-view learning. They are marked as missing when the tool lane is unavailable, and they become stronger model inputs only when produced by CodeQL, Joern, SVF, Clang/LLVM, or another parser-backed analysis tool. The current smoke implementation has partial AST/expression facts from CodeQL, selected CFG/DDG/callback facts from Joern, and missing-view masks for candidates that do not yet have graph extraction. It should not claim full AST+CFG+DFG coverage until these views are generated for the intended candidate set.
+
+These views should stay separate in the dataset and be fused in the model. A Joern CPG may be the source artifact for multiple structural views, but VulnSignal should still emit separate AST, CFG, DFG/DDG, callback, event, and rule-evidence records when possible. This keeps ablations honest and lets the model learn which structural evidence actually improves candidate ranking.
+
+The dataset should not force every fine-grained relationship into a hand-built graph before the model sees it. The required explicit alignment is candidate-level and provenance-level: task ID, candidate ID, source location, view, tool, extraction rule, and missing-view mask. Each view should still be normalized into generalized semantic fields, such as operation role, API family, operation class, security axis, lifecycle stage, identity status, and rule family, so the model does not only memorize project-specific names. Within that candidate record, cross-attention should learn soft relationships between source tokens, AST/call facts, lifecycle/API events, object-identity facts when available, CFG/order facts, DFG/DDG/dataflow facts, callback facts, and rule evidence. This is similar to parallel language data: sentence pairs are aligned at the example level, while token-to-token alignment is learned. Tool-proven object-operation edges, alias edges, callback edges, and rule validations are still valuable, but they are validation or high-precision auxiliary views, not mandatory hand-authored supervision for every example.
 
 ### Protocol/API Event Extraction Tooling
 
 Protocol/API sequences are ordered, source-anchored events such as acquire, release, refcount increment/decrement, allocate, free, lock, unlock, publish, schedule work, cancel work, and destroy object. They are meant to expose what lifecycle or security-relevant operations occur around a candidate location. Structured fact/path records are a separate input view: they describe typed relationships such as call edges, dataflow edges, object-flow links, path nodes, and rule hits. Both views must be produced by approved parser-backed or checker-backed tools, not by grep-only API matching or a custom regex parser.
 
-The first implementation should use **CodeQL custom C/C++ queries** as the primary extraction tool. CodeQL is the best initial fit because it provides a C/C++ analysis library, source-level query results, local/global dataflow support, path-query support, and a natural way to connect extracted facts to checker-backed `PASS`, `FAIL`, or `UNKNOWN` labels. VulnSignal should emit protocol/API event records such as `api_event` and lifecycle-event sequences, and structured fact/path records such as `object_flow`, `call_edge`, `dataflow_edge`, `path_node`, and `rule_hit`.
+The first scalable implementation should use **Joern/code property graphs** as the primary representation extractor for AST, CFG, DDG/dataflow-like records, call neighborhoods, and graph/path views. This avoids making dataset construction and inference depend on Linux Kbuild, architecture configuration, generated headers, cross-compilers, and local compile environments. Joern output is representation evidence, not vulnerability truth.
 
 For Linux-specific protocol checks, **Coccinelle** can be used as a supplemental tool because the Linux kernel already supports `coccicheck`, semantic patches, and report-mode output with file/line/column locations. Coccinelle results may generate candidate locations or supporting evidence, but they are not final truth without a recorded rule, source anchor, and validation policy.
 
-**Joern/code property graphs** may be evaluated later for graph-heavy experiments because code property graphs combine syntax, control-flow, and data-flow in one graph representation. Joern should not replace CodeQL as the first fact backbone unless an experiment shows that CodeQL cannot extract the needed event/path facts. **Tree-sitter** may help with lightweight source navigation, but it should not be treated as semantic evidence because it primarily provides concrete syntax trees. **Clang LibTooling/AST Matchers** remains a fallback for compiler AST-level extraction when a CodeQL query is not expressive enough, but it is not required for the first pilot.
+**CodeQL custom C/C++ queries** are now the validator lane, not the default representation backbone. CodeQL validators implement lifecycle protocol rules and attach candidate-level `rule_matched`, `rule_not_matched`, or `rule_unknown` records when a source view is buildable as a CodeQL database. Canonical validator queries are stored in `validators/codeql/`; smoke queries under `reports/` are experimental. **SVF/LLVM** remains important for deeper pointer/value-flow and alias-sensitive extraction when buildable LLVM bitcode is available. **Tree-sitter** may help with lightweight source navigation, but it should not be treated as semantic evidence because it primarily provides concrete syntax trees. **Clang LibTooling/AST Matchers** remains a fallback for compiler AST-level extraction when a CodeQL query is not expressive enough.
 
 Rejected extraction sources include grep-only matching, regex-only parser mimicry, unanchored LLM summaries, and manually invented protocol traces. If an event cannot be tied to a source file, function, line range, extraction tool, and extraction rule ID, it should not be used as tool-grounded data.
 
@@ -232,13 +240,28 @@ Splits:
 - CyberGym-style held-out evaluation by default
 - no fixed-source, patch-label, label-source, or oracle-result leakage into inference features
 
-VulnSignal accepts imbalanced data. It should not manufacture a globally balanced vulnerable/non-vulnerable dataset. Negatives come from same-task hard negatives, checker PASS rows, non-root-cause candidates, callgraph/dataflow neighbors, and UNKNOWN rows.
+VulnSignal accepts imbalanced data. It should not manufacture a globally balanced vulnerable/non-vulnerable dataset. Negatives come from same-task hard negatives, rule-scoped `rule_not_matched` rows, non-root-cause candidates, callgraph/dataflow neighbors, and UNKNOWN rows.
+
+The main target remains binary or ranking-based at the candidate level:
+
+- positive or relevant candidate
+- negative or non-root-cause candidate
+- `UNKNOWN` when evidence is insufficient
+
+Negative rows also carry subtype metadata for sampling, weighting, evaluation, and audit. These subtypes are not vulnerability classes:
+
+- `easy_negative`
+- `weak_nearby_hard_negative`
+- `same_api_hard_negative`
+- `checker_pass_hard_negative`
+- `fixed_version_analog`
+- `unknown_or_unproven`
 
 ### Oracle, Agent View, and Validation Guidance Policy
 
 VulnSignal must keep three artifact roles separate:
 
-- model-visible inputs: source windows, protocol/API sequences, structured fact/path records, optional graph records, cleaned task context, and optional agent views generated by the same inference pipeline
+- model-visible inputs: source windows, protocol/API sequences, AST/CFG/DFG/callback/path records, cleaned task context, and optional agent views generated by the same inference pipeline
 - hidden supervision and evaluation evidence: root-cause labels, oracle outcomes, reproducer results, fuzz inputs, pre/post patch behavior, fixed source, and oracle-candidate links
 - output artifacts: ranked review packets, selected evidence, uncertainty, and validation guidance for top candidates
 
@@ -273,7 +296,7 @@ This fitness-function use is optional downstream validation support, not the cor
 
 ### DL Model/Architecture
 
-The model does not generate a final vulnerability report. It reads each task's candidate code locations and model-visible evidence, then scores which locations should be inspected first. It can combine multiple inputs, such as source-code windows, protocol/API event sequences, structured fact/path records, cleaned task context, optional graph records, and optional LLM-agent summaries. In architecture terms, this is a non-generative multi-view candidate ranker.
+The model does not generate a final vulnerability report. It reads each task's candidate code locations and model-visible evidence, then scores which locations should be inspected first. It can combine multiple inputs, such as source-code windows, protocol/API event sequences, AST/CFG/DFG/callback/path records, cleaned task context, and optional LLM-agent summaries. In architecture terms, this is a non-generative multi-view candidate ranker.
 
 The model may use a neural source encoder, code language model, or language-model-assisted reranking. In this proposal, a neural source encoder means the learned part of the model that converts source code into numeric embeddings. Examples include a CodeBERT-style code language model, a transformer over code tokens and lines, a smaller token/line encoder, or a graph/code-structure encoder if AST, callgraph, or dataflow structure is added later. The boundary is not "no deep learning"; the boundary is that model output is not vulnerability truth.
 
@@ -281,8 +304,11 @@ Input views:
 
 - source window sequence: tokenized bounded source region with candidate-span markers
 - protocol/API sequences: ordered lifecycle/API events around the candidate
+- AST/expression facts: syntax-level expression/call records derived from CodeQL, Joern, Clang, or equivalent parser-backed analysis
+- CFG/order facts: control-flow and branch/order records around the candidate
+- DFG/DDG/dataflow facts: def-use, value-flow, alias, and object-flow records when CodeQL, Joern, SVF, or LLVM can extract them
 - structured fact/path records: call edges, dataflow edges, object-flow links, path nodes, and rule hits
-- graph structure: optional callgraph, dataflow, or object-flow neighborhood derived from structured facts
+- candidate-local structural neighborhoods: optional later derived views from AST/CFG/DFG/callgraph/object-flow facts, used for graph-encoder ablations only after the baseline works
 - task context text: crash summary, advisory text, checker question, rule brief, or benchmark description
 - vulnerability-concept descriptions: optional family/rule descriptions, human-authored hypotheses, or LLM-assisted hypotheses used as weak auxiliary concept views, not as validation truth
 - optional agent-view JSONL data: LLM-agent summaries, affected-object guesses, review questions, and test ideas generated without hidden oracle or patch truth
@@ -293,8 +319,11 @@ Each input source has its own encoder that turns that input into numeric embeddi
 
 - source window encoder: code-token embeddings, line-position embeddings, candidate-span embeddings
 - protocol/API sequence encoder: event-kind embeddings, API/function embeddings, object-role embeddings, event-order embeddings
+- AST encoder: node-kind embeddings, expression-kind embeddings, argument-position embeddings, and source-anchor embeddings
+- CFG encoder: basic-block or statement-node embeddings, branch-condition embeddings, edge-type embeddings, and local order-position embeddings
+- DFG/DDG encoder: def-use/value-flow embeddings, alias-status embeddings, object-flow embeddings, and data-dependence edge embeddings
 - structured fact/path encoder: fact-kind embeddings, predicate embeddings, object-ID embeddings, edge-type embeddings, path-position embeddings
-- graph encoder: optional node-type embeddings, edge-type embeddings, and neighborhood-position embeddings derived from structured facts
+- graph encoder: later-ablation encoder for node-type embeddings, edge-type embeddings, and neighborhood-position embeddings derived from AST/CFG/DFG/callgraph/object-flow facts; not required for the baseline model, and not part of the main dataset-readiness claim
 - context encoder: text-token embeddings, source-family embeddings, rule-family embeddings, task-type embeddings
 - vulnerability-concept encoder: text embeddings for rule/family descriptions, CVE/advisory descriptions, human-authored hypotheses, or LLM-assisted concept summaries when allowed by the split policy
 - optional agent-view encoder: provenance embeddings and text-token embeddings for summaries, affected-object guesses, review questions, and test ideas
@@ -304,6 +333,7 @@ Fusion:
 Cross-attention is used because each candidate has multiple input views that refer to the same code location from different perspectives. The model must learn how source tokens, protocol/API events, structured facts, graph neighborhoods, and task context align with each other. This helps the ranker distinguish normal API/event sequences from suspicious combinations of source code and tool-derived evidence.
 
 - typed query bank, where rule results, path facts, lifecycle/API events, object-identity facts, and optional vulnerability descriptions form separate query groups
+- typed query groups such as `Q_rule`, `Q_event`, `Q_object`, `Q_path`, `Q_context`, and `Q_description`
 - tool-grounded queries are the primary semantic anchors; description queries are auxiliary and lower confidence
 - cross-attention between input views, where source code, checker facts, task context, and optional agent summaries can attend to each other
 - gated fusion, where the model learns how much weight to give each input view, especially when some evidence is missing or weaker
@@ -343,11 +373,20 @@ The $\lambda$ values are tunable scalar weights that control how much each auxil
 
 `L_rank` trains candidate ordering within the same task. `L_contrast` aligns candidate representations with matching tool evidence, rule concepts, vulnerable/fixed contrasts, and optional description views while pushing apart mismatched evidence. `L_rule` trains likely rule or protocol prediction. `L_object` trains affected-object prediction. `L_evidence` trains supporting-fact selection. `L_guidance` trains validation-guidance status or action-category prediction when historical oracle links provide supervision. `L_unknown` trains confidence calibration and abstention when evidence is incomplete.
 
+Training should proceed in stages:
+
+1. representation pretraining that aligns candidate code with rule, evidence, and optional description views
+2. Linux task-grouped ranking where positives outrank relevant hard negatives inside the same task
+3. verifier-guided post-training where checker/oracle outcomes create preference pairs
+4. abstention calibration where incomplete evidence teaches confidence and `UNKNOWN`
+
 ### Training
 
 During training, each batch contains one or more tasks and their candidate locations. The model computes all prediction heads, combines their losses into $L_{\text{total}}$, and backpropagates the combined loss through the shared encoders, fusion layers, and heads. The model is expected to learn under incomplete and uneven evidence, not under a perfect-label assumption.
 
 The ranking component, $L_{\text{rank}}$, is computed within each `task_id`; candidates from unrelated tasks are not compared as one global binary class table. This helps with imbalance because the model compares candidates inside the same investigation task, while hard-negative sampling, label-strength weighting, and `UNKNOWN` calibration prevent the many negative or uncertain rows from dominating training. Strong dynamic labels can receive the highest supervision weight, CodeQL/checker-conditional labels can receive rule-scoped weight, weak patch/advisory rows can receive reduced weight, and UNKNOWN rows can train abstention instead of being forced into false negatives.
+
+The first ranking baseline should use a weighted pairwise margin loss with rotating task-local negatives. A practical starting batch/group is one positive candidate, one easy or wide negative, two hard negatives, and two verified or conditional hard negatives when available. Negatives should be selected from the same task, same rule family, same API or sink, same file/function, same subsystem, fixed-version analogs, or CodeQL `rule_not_matched` candidates. Do not generate all possible positive-negative pairs; cap positive reuse per epoch to reduce memorization.
 
 In the first implementation, $L_{\text{rank}}$ will use one ranking objective, either pairwise or listwise:
 
@@ -365,8 +404,16 @@ Pairwise loss compares a positive candidate with a negative candidate:
 
 $$
 L_{\text{pair}}
-= \max(0,\; m - s(c^+) + s(c^-))
+= w_n \max(0,\; m_n - s(c^+) + s(c^-))
 $$
+
+Here $w_n$ and $m_n$ depend on the negative subtype. Initial values can be:
+
+| Negative subtype | Weight $w_n$ | Margin $m_n$ |
+| --- | ---: | ---: |
+| easy negative | 0.5 | 0.2 |
+| hard negative | 1.0 | 0.5 |
+| verified or conditional hard negative | 1.5 | 0.7 |
 
 Listwise loss ranks all candidates within the same task:
 
@@ -415,6 +462,26 @@ $$
 
 where $z_c$ is the candidate representation, $z_e^+$ is matching evidence or concept representation, $z_e^-$ is non-matching evidence, $\tau$ is the temperature, and $\mathrm{sim}$ is cosine similarity or a learned similarity score. This loss should not create labels by itself; it teaches representation alignment under the label-strength policy.
 
+Verifier-guided post-training:
+
+After the task-grouped ranking baseline works, VulnSignal should add preference training from checker/oracle outcomes. Examples:
+
+- CodeQL/checker `rule_matched` candidate > rule-scoped `rule_not_matched` candidate
+- dynamic-oracle-linked candidate > same-file distractor
+- CodeQL-path-supported candidate > weak nearby hard negative
+- root-cause candidate > patch-nearby UNKNOWN
+- strong evidence > weak evidence
+- UNKNOWN should abstain, not become negative
+
+A standard preference loss can be:
+
+$$
+L_{\text{pref}}
+= -\log \sigma\left(\beta\left(s(c_{\text{supported}}) - s(c_{\text{rejected}})\right)\right)
+$$
+
+where $\beta$ controls preference sharpness. This is a key differentiator from description-only representation learning, because the model is shaped by verifier outcomes instead of only semantic similarity.
+
 Training implementation can use PyTorch. The first implementation should prioritize:
 
 1. source-only baseline
@@ -425,6 +492,8 @@ Training implementation can use PyTorch. The first implementation should priorit
 6. optional agent-view reranker
 
 Hyperparameter tuning should be modest at first: candidate window size, maximum candidates per task, encoder size, fusion method, hard-negative sampling weight, loss weights, and top-k review budget. Optuna or a similar search tool should be used only after the baseline pipeline produces reliable validation results.
+
+Overfitting controls are mandatory because positives are scarce. Split before pair generation by task, project, CVE, and clone family where possible. Deduplicate source windows and patch variants. Freeze most transformer layers initially and train adapters plus the ranking head first. Limit positive reuse per epoch, early-stop on project/CVE-disjoint validation, and evaluate hard-negative-only ranking. Pair expansion increases comparisons, not true positive diversity.
 
 ### Testing
 
@@ -454,13 +523,17 @@ Source-only mode is allowed as a baseline or assistant track, but must be report
 
 Primary metrics:
 
-- top-k localization: whether the validated root-cause or checker-FAIL candidate appears in top 1, 3, 5, or 10
+- top-k localization: whether the validated root-cause or CodeQL/checker `rule_matched` candidate appears in top 1, 3, 5, or 10
 - MRR / mean reciprocal rank
 - nDCG over label strength and candidate relevance
+- hard-negative-only Recall@k and MRR
+- false positives by negative subtype
 - evidence fact precision/recall when fact-level evidence is available
+- evidence-chain overlap
 - rule-family and affected-object accuracy for validated labels
 - validation-guidance quality when historical oracle links provide evaluation targets
 - UNKNOWN calibration and abstention quality
+- project/CVE-disjoint test performance
 - reviewer-effort reduction: evidence packets inspected before finding validated candidates
 
 Required baselines:
@@ -475,6 +548,17 @@ Required baselines:
 Evaluation must report results by source family, rule family, project split, label strength, and availability of CodeQL/checker facts.
 
 Mixed-strength data must be reported explicitly. Overall metrics are not enough: VulnSignal should show performance separately for `dynamic`, `codeql_conditional`, `patch_confirmed_weak`, `weak`, and `UNKNOWN` rows. Weak or UNKNOWN rows should not be used to claim final vulnerability-detection accuracy.
+
+Required ablations:
+
+- source only
+- source + facts
+- source + facts + descriptions
+- without object identity
+- without lifecycle/API events
+- without CFG/DFG/path facts
+- without verifier-guided post-training
+- SARD transfer-risk study only if externally required and only after the Linux baseline is stable; it is not a default ablation
 
 ## Challenges/Ethical Considerations & Risks
 

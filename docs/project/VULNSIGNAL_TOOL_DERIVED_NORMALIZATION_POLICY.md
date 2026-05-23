@@ -47,6 +47,37 @@ Raw fields such as `callee`, `object_expression`, `file`, `function`, and full s
 | Rule results | VulnSignal rule runner over tool facts | Rule instances must reference the tool facts they consumed. |
 | Dynamic oracle evidence | syzkaller, KASAN, KCSAN, reproducers, fuzz tests | Required for `dynamic` labels. |
 
+## Joern vs CodeQL Policy
+
+Joern is the primary scalable representation extractor. It should produce
+candidate-level AST, CFG, DDG/dataflow-like, callgraph, callback, and graph
+neighborhood views without requiring a full Linux build. This keeps both
+preprocessing and inference usable when Kbuild, architecture config, generated
+headers, cross-compilers, or local compile environments are unavailable.
+
+Coccinelle is the Linux semantic-pattern lane for lifecycle/API events and
+wrapper/API evidence. Tree-sitter or similar parser-backed tools may support
+source-window extraction and lightweight syntax anchors.
+
+CodeQL is the validation lane. It should run only when a candidate source view is
+buildable as a CodeQL database. Canonical CodeQL validators live under
+`validators/codeql/` and attach candidate-level validation records:
+
+- `rule_matched`: expected lifecycle protocol evidence was observed in the candidate window.
+- `rule_not_matched`: the validator ran, but the rule evidence was not observed in the candidate window.
+- `rule_unknown`: CodeQL could not validate the candidate because the database, source view, or required facts were unavailable or incomplete.
+
+Do not treat CodeQL `rule_not_matched` as globally safe code. It is only a
+rule-scoped result under a specific source snapshot and build configuration.
+
+Implementation priority:
+
+1. Generalize Joern-first AST/CFG/DDG/callback extraction for candidate windows.
+2. Keep Coccinelle lifecycle/API matching as a parser-backed semantic evidence lane.
+3. Store CodeQL validators separately under `validators/codeql/`.
+4. Use CodeQL output for candidate validation flags, label strengthening, and verifier-guided preferences when buildable.
+5. Keep every missing or unsupported view as an explicit missing-view mask or `rule_unknown`.
+
 ## Strength Boundary
 
 - `dynamic`: requires reproduced oracle behavior, usually pre-patch FAIL and post-patch PASS.
