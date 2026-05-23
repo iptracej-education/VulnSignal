@@ -1,8 +1,0 @@
-{"step": "python3 reports/e022_object_lifetime_smoke/check_tool_capabilities.py", "status": "completed", "returncode": 0, "stdout_tail": "", "stderr_tail": ""}
-{"step": "python3 reports/e022_object_lifetime_smoke/promote_codeql_conditional_labels.py", "status": "completed", "returncode": 0, "stdout_tail": "", "stderr_tail": ""}
-{"step": "python3 reports/e022_object_lifetime_smoke/run_coccinelle_window_probe.py", "status": "completed", "returncode": 0, "stdout_tail": "", "stderr_tail": ""}
-{"step": "python3 reports/e022_object_lifetime_smoke/run_coccinelle_wrapper_probe.py", "status": "completed", "returncode": 0, "stdout_tail": "", "stderr_tail": ""}
-{"step": "python3 reports/e022_object_lifetime_smoke/analyze_promotion_failures_20.py", "status": "completed", "returncode": 0, "stdout_tail": "", "stderr_tail": ""}
-{"step": "python3 reports/e022_object_lifetime_smoke/derive_rule_gap_report_20.py", "status": "completed", "returncode": 0, "stdout_tail": "", "stderr_tail": ""}
-{"step": "python3 reports/e022_object_lifetime_smoke/run_joern_window_graph_probe.py", "status": "completed", "returncode": 0, "stdout_tail": "", "stderr_tail": ""}
-{"step": "python3 reports/e022_object_lifetime_smoke/build_multiview_artifacts_20.py", "status": "completed", "returncode": 0, "stdout_tail": "", "stderr_tail": ""}

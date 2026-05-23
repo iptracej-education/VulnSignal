@@ -1,9 +1,0 @@
-{
-  "candidate_windows": 51,
-  "view_runs": 102,
-  "matched_view_runs": 9,
-  "match_count": 9,
-  "tool": "Coccinelle",
-  "pattern": "coccinelle_patterns/wrapper_candidates.cocci",
-  "label_promotion": "none"
-}
