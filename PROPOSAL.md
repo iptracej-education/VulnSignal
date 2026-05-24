@@ -165,7 +165,8 @@ Training is grouped by `task_id`: candidates are compared inside the same invest
 The model is trained with a weighted multi-task objective:
 
 $$
-L_{\text{total}} = L_{\text{rank}} + \lambda_{\text{contrast}}L_{\text{contrast}} + \lambda_{\text{rule}}L_{\text{rule}} + \lambda_{\text{object}}L_{\text{object}} + \lambda{\text{evidence}}L_{\tex {evidence}} + \lambda_{\text{pref}}L_{\text{pref}} + \lambda_{\text{unknown}}L_{\text{unknown}}
+L_{\text{total}} = L_{\text{rank}} + \lambda_{\text{contrast}}L_{\text{contrast}} + \lambda_{\text{rule}}L_{\text{rule}} + \lambda_{\text{object}}L_{\text{object}} 
++ \lambda{\text{evidence}}L_{\text{evidence}} + \lambda_{\text{pref}}L_{\text{pref}} + \lambda_{\text{unknown}}L_{\text{unknown}}
 $$
 
 The first baseline should use task-local weighted pairwise ranking:
