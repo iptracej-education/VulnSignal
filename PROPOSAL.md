@@ -178,24 +178,13 @@ $$
 Contrastive learning aligns candidate representations with matching tool evidence or allowed vulnerability-concept descriptions:
 
 $$
-L_{\text{contrast}}
-=
--\log
-\frac{
-\exp(\mathrm{sim}(z_c, z_e^+) / \tau)
-}{
-\exp(\mathrm{sim}(z_c, z_e^+) / \tau)
-+
-\sum_{e^-}
-\exp(\mathrm{sim}(z_c, z_e^-) / \tau)
-}
+L_{\text{contrast}} = -\log \frac{\exp(\mathrm{sim}(z_c, z_e^+) / \tau)}{\exp(\mathrm{sim}(z_c, z_e^+) / \tau)+\sum_{e^-}\exp(\mathrm{sim}(z_c, z_e^-) / \tau)}
 $$
 
 After the ranking baseline works, verifier-guided post-training can use CodeQL/checker outcomes as preferences:
 
 $$
-L_{\text{pref}}
-= -\log \sigma\left(\beta\left(s(c_{\text{supported}}) - s(c_{\text{rejected}})\right)\right)
+L_{\text{pref}} = -\log \sigma\left(\beta\left(s(c_{\text{supported}}) - s(c_{\text{rejected}})\right)\right)
 $$
 
 The training sequence is: source-only baseline, source plus representation views, contrastive alignment, verifier-guided preference training, and `UNKNOWN` calibration. Positive reuse must be capped, and splits must be made before pair generation.
