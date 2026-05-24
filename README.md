@@ -1,7 +1,6 @@
 # VulnSignal
 
 [![Project](https://img.shields.io/badge/Project-VulnSignal%20-blue)](https://github.com/iptracej-education/VulnSignal/)
-[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://www.python.org/)
 [![Scope](https://img.shields.io/badge/Scope-C%2FC%2B%2B%20Systems%20Code-purple)](#scope)
 [![Truth](https://img.shields.io/badge/Truth-CodeQL%2FTool%20Grounded-brightgreen)](#core-workflow)
@@ -64,27 +63,13 @@ All inputs join by `task_id` and `candidate_id`. Missing rows are recorded expli
 - Blocked CodeQL validation is recorded as `rule_unknown` with blocker provenance.
 - Grep-only matching, invented protocol traces, and unanchored LLM summaries are not tool-grounded data.
 
-Canonical CodeQL validators live under:
-
-```text
-validators/codeql/
-```
+Canonical CodeQL validators are internal working artifacts until they are promoted into the public repository snapshot.
 
 ## Current Dataset Status
 
 Current phase: `evidence_grounding_smoke`.
 
-The active smoke dataset is under:
-
-```text
-reports/e022_object_lifetime_smoke/
-```
-
-Generated status is tracked in:
-
-```text
-docs/project/VULNSIGNAL_CURRENT_DATASET_STATUS.md
-```
+The active smoke dataset and generated status reports are internal working artifacts until they are promoted into the public repository snapshot.
 
 Current base status:
 
@@ -103,29 +88,10 @@ This is a row-count and pipeline smoke proof, not a training-ready dataset. The 
 
 ## Key Documents
 
-- [Proposal](docs/PROPOSAL.md)
+- [README.md](README.md)
+- [PROPOSAL.md](PROPOSAL.md)
 - [Document Index](DOCUMENT_INDEX.md)
-- [Vision](docs/project/VULNSIGNAL_VISION.md)
-- [Architecture](docs/project/VULNSIGNAL_ARCHITECTURE.md)
-- [Dataset Strategy](docs/project/VULNSIGNAL_DATASET_STRATEGY.md)
-- [Model Strategy](docs/project/VULNSIGNAL_MODEL_STRATEGY.md)
-- [Ground Truth Policy](docs/project/VULNSIGNAL_GROUND_TRUTH_POLICY.md)
-- [CodeQL Validation Schema](docs/project/VULNSIGNAL_CODEQL_VALIDATION_SCHEMA.md)
-- [Current Dataset Status](docs/project/VULNSIGNAL_CURRENT_DATASET_STATUS.md)
-- [Dataset Generation Knowledge](docs/project/VULNSIGNAL_DATA_GENERATION_KNOWLEDGE.md)
-- [Tool-Derived Normalization Policy](docs/project/VULNSIGNAL_TOOL_DERIVED_NORMALIZATION_POLICY.md)
-- [Alignment Checklist](docs/project/VULNSIGNAL_ALIGNMENT_CHECKLIST.md)
-- [Object-Lifetime Pilot Viability](docs/feasibility/object_lifetime_pilot_viability/README.md)
-- [Hard-Case Tool Feasibility](docs/feasibility/hardcase_tool_feasibility/README.md)
-- [Compact Visual Deck](docs/slides/vulnsignal_compact_visual_deck.html)
-- [Detailed Dataset Deck](docs/slides/vulnsignal_dataset_development.html)
 
 ## Alignment Gate
 
-Run this before committing future VulnSignal documentation changes:
-
-```bash
-python3 scripts/check_vulnsignal_alignment.py
-```
-
-The alignment gate blocks vague ML vulnerability-detection framing, stale project naming, ambiguous small-model diagram language, and claims that model output alone establishes vulnerability truth.
+The internal alignment gate should block vague ML vulnerability-detection framing, stale project naming, ambiguous diagram language, and claims that model output alone establishes vulnerability truth. The gate script is not part of the current three-file public snapshot.

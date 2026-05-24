@@ -245,25 +245,13 @@ Results must be reported by rule family, project split, label strength, represen
 
 | Deliverable | Output |
 | --- | --- |
-| Proposal and visuals | `docs/PROPOSAL.md`, architecture PNG, compact and dataset slide decks |
+| Public proposal documents | `README.md`, `PROPOSAL.md`, and `DOCUMENT_INDEX.md` |
 | Dataset pipeline | task/candidate schemas, representation extraction, CodeQL validation records, labels |
 | Inference pipeline | source ingestion, candidate generation, representation generation, top-k ranking packets |
 | Models | random/source-only/proximity/checker baselines and multi-view neural ranker |
 | Report | top-k localization, evidence quality, `UNKNOWN` calibration, and review-budget analysis |
 
-## Resources
-
-Primary project docs:
-
-- `docs/project/VULNSIGNAL_VISION.md`
-- `docs/project/VULNSIGNAL_DATASET_STRATEGY.md`
-- `docs/project/VULNSIGNAL_MODEL_STRATEGY.md`
-- `docs/project/VULNSIGNAL_CODEQL_VALIDATION_SCHEMA.md`
-- `docs/project/VULNSIGNAL_GROUND_TRUTH_POLICY.md`
-- `docs/slides/vulnsignal_dataset_development.html`
-- `docs/slides/vulnsignal_compact_visual_deck.html`
-
-Candidate original data sources:
+## Candidate Original Data Sources
 
 - OSS-Fuzz / ClusterFuzz public disclosed issues
 - OSV.dev
