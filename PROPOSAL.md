@@ -2,11 +2,11 @@
 
 ## Introduction
 
-VulnSignal proposes a CodeQL-validated, tool-grounded dataset and deep-learning pipeline for vulnerability research. It does not train a generic vulnerable/non-vulnerable function classifier; it ranks suspicious source-code locations inside a real investigation, predicts likely violated rules, selects supporting evidence, and reports uncertainty.
+VulnSignal proposes a tool-grounded dataset and deep-learning pipeline for vulnerability research. It does not train a generic vulnerable/non-vulnerable function classifier; it ranks suspicious source-code locations inside a real investigation, predicts likely violated rules, selects supporting evidence, and reports uncertainty.
 
-The first implementation focuses on C/C++ object lifecycle, concurrency, and memory-safety bugs, starting with Linux-style object lifetime and refcount patterns. The dataset foundation is public Linux/CVE task instances with source snapshots, patch or advisory anchors, generated candidate snippets, tool-derived representations, and CodeQL validation records.
+The first implementation focuses on C/C++ object lifecycle, concurrency, and memory-safety bugs, starting with Linux-style object lifetime and refcount patterns. The dataset foundation is public Linux/CVE task instances with source snapshots, patch or advisory anchors, generated candidate snippets, scalable tool-derived representations, and sparse CodeQL validation records when buildable validation is available.
 
-Tool-grounded means that each applicable `(candidate_id, rule_id)` pair receives a CodeQL validation attempt: `rule_matched`, `rule_not_matched`, or `rule_unknown` with blocker provenance. Joern, Coccinelle, and parser-backed tools generate scalable representations; CodeQL validates selected vulnerability rules. The model is a proposer, not a judge, and final validation still requires checker/oracle evidence or explicit `UNKNOWN`.
+Tool-grounded means every model row links back to source anchors, generated representation records, evidence provenance, and explicit missing-evidence status. Joern, Coccinelle, and parser-backed tools generate scalable representations. CodeQL is a sparse high-confidence validator for selected rules: when attempted, it records `rule_matched`, `rule_not_matched`, or `rule_unknown` with blocker substatus. The model is a proposer, not a judge, and final validation still requires checker/oracle evidence or explicit `UNKNOWN`.
 
 Core workflow:
 
@@ -19,7 +19,7 @@ model outputs:
   likely rule, affected object, supporting evidence, and validation guidance
 
 validation records:
-  CodeQL/checker rule_matched, rule_not_matched, or rule_unknown
+  optional CodeQL/checker rule_matched, rule_not_matched, or rule_unknown
 ```
 
 ## Problem Statement/Background/Motivation/Related Works
@@ -36,7 +36,7 @@ Most ML vulnerability-detection datasets still frame the task as function-level 
 
 VulnSignal treats this as task-local candidate ranking. The dataset unit is not "one function = vulnerable or not"; it is one investigation task with many candidate code snippets. Ranking is the right learning target because it matches reviewer workflow, handles naturally imbalanced data, and measures whether the model can surface useful candidates within a limited review budget.
 
-Tool-grounding gives the model higher-confidence suspicious-code candidates while keeping the ranking auditable. Each candidate links back to a source version, concrete location, generated representation records, and a CodeQL/checker validation attempt. The validation record says `rule_matched`, `rule_not_matched`, or `rule_unknown`; it does not hide uncertainty behind a vague binary label. LLM-assisted workflows can help read code, draft hypotheses, summarize evidence, and rerank candidates, but an LLM-only result is not reproducible validation. VulnSignal assumes LLM output is auxiliary unless it is tied back to source anchors and tool records.
+Tool-grounding gives the model higher-confidence suspicious-code candidates while keeping the ranking auditable. Each candidate links back to a source version, concrete location, generated representation records, and available validation evidence. CodeQL is valuable but sparse in C/C++ systems code because build, Kconfig, architecture, generated-header, and toolchain requirements are real constraints. Therefore `rule_unknown` is a first-class result with substatus, not a silent skip or negative label. LLM-assisted workflows can help read code, draft hypotheses, summarize evidence, and rerank candidates, but an LLM-only result is not reproducible validation. VulnSignal assumes LLM output is auxiliary unless it is tied back to source anchors and tool records.
 
 Tool-derived multiple representations strengthen inference by giving the model normalized evidence channels beyond raw source tokens. Joern, Coccinelle, SVF/LLVM, Clang/Tree-sitter, and CodeQL-derived validation can expose lifecycle/API order, object identity, control flow, data flow, callbacks, graph neighborhoods, and rule evidence. When these views agree, the ranker can assign higher confidence to suspicious candidates; when views are missing or conflicting, it should preserve uncertainty. Therefore, VulnSignal's core research question is whether these abstractions improve suspicious-location ranking beyond source-only baselines.
 
@@ -63,8 +63,8 @@ What remains UNKNOWN?
 Primary contributions:
 
 1. A dataset built around tasks (vulnerability investigations) and candidates (code snippets), rather than function-level vulnerable/non-vulnerable labels.
-2. A CodeQL validation process that applies sets of vulnerability rules to each candidate code snippet and records whether each rule is matched, not matched, or unknown as tool-grounded evidence, or quasi-ground truth under the selected rule.
-3. A candidate-ranking model that uses source code, static-analysis representations, and CodeQL validation results to rank suspicious code snippets, identify likely violated rules, select supporting evidence, and report uncertainty.
+2. A sparse CodeQL validation process that applies selected vulnerability rules when buildable validation is available and records matched, not matched, or unknown with blocker substatus as high-confidence evidence.
+3. A candidate-ranking model that uses source code, static-analysis representations, sparse validator evidence, and missing-evidence masks to rank suspicious code snippets, identify likely violated rules, select supporting evidence, and report uncertainty.
 4. An evaluation of whether tool-derived abstract representations improve suspicious-location ranking for selected vulnerability families.
 
 ## Project Execution Map
@@ -73,7 +73,7 @@ VulnSignal has four execution tracks:
 
 1. Dataset construction: collect public source artifacts, create vulnerability-investigation tasks, generate candidate code snippets, and attach source/evidence provenance.
 2. Representation extraction: use Joern, Coccinelle, and parser-backed static analysis to turn each candidate code snippet into model inputs.
-3. CodeQL validation: apply sets of vulnerability rules to each candidate and record whether each rule is matched, not matched, or unknown.
+3. Sparse validation: run CodeQL/checker validation where practical, record matched/not matched/unknown with substatus, and preserve unavailable validation as explicit uncertainty.
 4. Model training and evaluation: train a candidate-ranking model, evaluate top-k suspicious-location ranking, and report uncertainty instead of claiming source-only vulnerability truth.
 
 Detailed JSONL schemas and pipeline steps are maintained in the dataset strategy and design documents, not repeated here.
@@ -117,9 +117,11 @@ In practice, tasks and candidates are stored as two linked tables: `task_instanc
 
 ### Dataset
 
-VulnSignal is a derived dataset, not a downloaded vulnerable/non-vulnerable table. The initial source basis is public Linux/CVE artifacts with source snapshots, patches or advisories, source anchors, generated candidate code snippets, and CodeQL validation records.
+VulnSignal is a derived dataset, not a downloaded vulnerable/non-vulnerable table. The initial source basis is public Linux/CVE artifacts with source snapshots, patches or advisories, source anchors, generated candidate code snippets, scalable representation records, and sparse CodeQL validation records when available.
 
 The dataset is expected to be imbalanced and mixed-strength. It records label value, label strength, evidence source, and `UNKNOWN` explicitly instead of forcing balanced vulnerable/non-vulnerable labels.
+
+Each CVE/task also needs a mechanism profile before a rule can produce stronger evidence. The rule-development chain is: CVE/task mechanism -> evidence targets -> CodeQL query search/adaptation -> validation result -> evidence strength. Before writing custom QL, VulnSignal searches existing CodeQL C/C++ queries, CWE query coverage, CodeQL libraries, and local validators; a separate security-research review pass challenges the CVE mechanism and edge cases.
 
 ### Model Input Format
 
@@ -128,7 +130,7 @@ Each model row is one candidate code snippet linked to one task. The model uses 
 | Input group | What it contains | Purpose |
 | --- | --- | --- |
 | Source code | The candidate file/function/line snippet with span markers | Lets the model read the actual code under review. |
-| Tool-grounded linked tables | Task rows, candidate rows, CodeQL validation rows, labels, evidence strength, and `UNKNOWN` reasons | Connects the code snippet to the investigation and validation evidence. |
+| Tool-grounded linked tables | Task rows, candidate rows, sparse CodeQL/checker validation rows, labels, evidence strength, and `UNKNOWN` reasons | Connects the code snippet to the investigation and available validation evidence. |
 | Representations | Protocol/API events, AST facts, CFG/order facts, DFG/DDG/dataflow facts, graph/path facts, and optional agent-view text | Tests whether tool-derived abstractions improve ranking beyond source code alone. |
 
 This representation layer is a core research component. For each vulnerability family, VulnSignal evaluates which abstract views help the model rank suspicious candidate snippets.
@@ -137,11 +139,13 @@ All inputs are joined by `task_id` and `candidate_id`. Missing rows are recorded
 
 ### Protocol/API Event Extraction Tooling
 
-Protocol/API events and several fact/path records above must come from parser-backed or checker-backed tools, not grep-only matching or invented traces. Joern is the primary representation extractor; Coccinelle, SVF/LLVM, Tree-sitter, and Clang tooling may add focused views when useful. CodeQL is reserved for validation: each selected rule records `rule_matched`, `rule_not_matched`, or `rule_unknown` with source anchors and blocker provenance.
+Protocol/API events and several fact/path records above must come from parser-backed or checker-backed tools, not grep-only matching or invented traces. Joern is the primary representation extractor; Coccinelle, SVF/LLVM, Tree-sitter, and Clang tooling may add focused views when useful. CodeQL is reserved for sparse validation: attempted rules record `rule_matched`, `rule_not_matched`, or `rule_unknown` with source anchors and blocker substatus. Missing CodeQL validation is not fabricated as negative evidence.
+
+Patch-to-rule classes such as `patch_signature_rule`, `patch_derived_protocol_rule`, `path_object_rule`, and `exploratory_generated_rule` describe rule origin only. Evidence strength comes from what the query proves for the CVE mechanism: weak API/patch signal, medium protocol/object evidence, strong tool evidence, or `UNKNOWN`.
 
 ### Data Processing
 
-The pipeline creates linked JSONL tables for source acquisition, tasks, candidates, source snippets, representation records, CodeQL validation results, optional oracle/agent records, and labels. Candidate rows are generated by tools and audited by humans; they are not hand-labeled one by one.
+The pipeline creates linked JSONL tables for source acquisition, tasks, candidates, source snippets, representation records, sparse CodeQL validation results, optional oracle/agent records, and labels. Candidate rows are generated by tools and audited by humans; they are not hand-labeled one by one.
 
 Splits should avoid source, patch, label, and validation leakage. Labels remain candidate-level: relevant, non-root-cause, or `UNKNOWN`, with negative subtypes used only for sampling and evaluation.
 
@@ -195,9 +199,9 @@ Testing separates model-visible inputs from hidden truth.
 
 | Visible at inference | Hidden for evaluation only |
 | --- | --- |
-| source snapshot, selected vulnerability families, task context, generated candidates, source snippets, representation rows, CodeQL validation-attempt rows, optional agent views | ground-truth labels, root-cause location, fixed source, patch answer, oracle/fuzz/reproducer outcomes, label-source fields |
+| source snapshot, selected vulnerability families, task context, generated candidates, source snippets, representation rows, available CodeQL/checker validation-attempt rows, optional agent views | ground-truth labels, root-cause location, fixed source, patch answer, oracle/fuzz/reproducer outcomes, label-source fields |
 
-Source-only mode is allowed as a baseline, but it must be reported as `source_only`, not as the primary tool-grounded result.
+Default inference should not require CodeQL compilation. The no-build path ranks candidates from source, Joern/Coccinelle, and other scalable representations. CodeQL can be run asynchronously for dataset construction, offline evaluation, or optional top-k validation. Source-only mode is allowed as a baseline, but it must be reported as `source_only`, not as the primary tool-grounded result.
 
 ## Evaluation
 
@@ -220,7 +224,7 @@ Results must be reported by rule family, project split, label strength, represen
 - Leakage: hide patch, oracle, and label-source fields during inference.
 - Source-only or LLM overclaiming: report source-only results as baselines, not tool-grounded validation.
 - Human review overload: audit top-k packets and stratified samples, not every candidate row.
-- Checker incompleteness: record `rule_unknown` with blocker provenance.
+- Sparse checker coverage: record `rule_unknown` with blocker substatus and use it for uncertainty, not positive or negative truth.
 - Dual-use risk: frame outputs as defensive candidate prioritization, not exploit proof.
 
 ## Deliverables
@@ -228,8 +232,8 @@ Results must be reported by rule family, project split, label strength, represen
 | Deliverable | Output |
 | --- | --- |
 | Public proposal documents | `README.md`, `PROPOSAL.md`, and `DOCUMENT_INDEX.md` |
-| Dataset pipeline | task/candidate schemas, representation extraction, CodeQL validation records, labels |
-| Inference pipeline | source ingestion, candidate generation, representation generation, top-k ranking packets |
+| Dataset pipeline | task/candidate schemas, representation extraction, sparse CodeQL validation records, labels |
+| Inference pipeline | source ingestion, candidate generation, no-build representation generation, top-k ranking packets, optional asynchronous validation |
 | Models | random/source-only/proximity/checker baselines and multi-view neural ranker |
 | Report | top-k localization, evidence quality, `UNKNOWN` calibration, and review-budget analysis |
 
@@ -247,6 +251,6 @@ Implementation resources:
 
 - Python and PyTorch for model prototypes
 - Joern/Coccinelle for scalable representation extraction
-- CodeQL for primary evidence-level validation and checker-backed conditional labels
+- CodeQL for sparse high-confidence validation evidence and checker-backed conditional labels when buildable validation is available
 - Git/source indexing tools for source-window and candidate generation
 - Earlier object-lifetime scripts and reports for object-lifetime vocabulary and evidence-packet discipline
