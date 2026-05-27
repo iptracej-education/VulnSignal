@@ -25,7 +25,6 @@ Tool-derived multiple representations strengthen inference by giving the model n
 
 Rule development is mechanism-first. For each CVE/task, VulnSignal must define the vulnerability mechanism, evidence targets, relevant existing CodeQL/CWE query basis, adapted or custom query, validation result, and evidence strength. Patch-derived draft classes describe rule origin only; they do not decide whether evidence is weak, medium, strong, or `UNKNOWN`.
 
-Core workflow details are kept in [VULNSIGNAL_CORE_WORKFLOW.md](docs/project/VULNSIGNAL_CORE_WORKFLOW.md).
 
 ## Model Inputs
 
