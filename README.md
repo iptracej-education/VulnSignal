@@ -49,11 +49,13 @@ Active dataset development is now the 30-CVE evidence-grounded build. Detailed g
 | Data | Count | Status |
 | --- | ---: | --- |
 | CVE task instances | 30 | real dataset scope |
-| candidate locations | 1,233 | task-grouped candidate rows |
+| raw candidate locations | 1,533 | task-grouped real-code candidate rows |
+| normalized candidate rows | 1,267 | duplicate source windows collapsed |
+| source-visible training rows | 939 | expanded same-protocol real-code pool |
 | API/protocol representation rows | 709 | CodeQL-derived generalized roles and scope constraints |
-| candidate density | 41.1 average / 25 median | normalize for 50-100 distinct eval candidates; allow 100+ training candidates |
-| Joern AST/CFG candidates | 1,233 each | structural representations available for all candidates |
-| Joern DDG-supported candidates | 444 | model-visible dataflow support mask |
+| candidate density | 42.2 normalized average | 3 tasks still below 30 due to source-ref gaps |
+| Joern AST/CFG candidates | 967 each | generalized structural views for canonical pre-expansion rows |
+| Joern DDG-supported candidates | 295 | model-visible dataflow support mask |
 
 ## Stage 1 Baseline Check
 
@@ -61,16 +63,16 @@ This is a development check, not a dataset release.
 
 | Mode | MRR | Hit@1 | Hit@5 | Hit@10 | nDCG@10 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| source-only | 0.5977 | 0.5000 | 0.8333 | 0.8333 | 0.5782 |
-| source + AST/CFG | 0.7302 | 0.6667 | 0.8333 | 0.8333 | 0.6015 |
-| source + full static views | 0.8667 | 0.8333 | 1.0000 | 1.0000 | 0.7922 |
-| validation-assisted | 0.8889 | 0.8333 | 1.0000 | 1.0000 | 0.8569 |
+| source-only | 0.5062 | 0.3333 | 0.6667 | 0.8333 | 0.5054 |
+| source + AST/CFG | 0.7628 | 0.6667 | 0.8333 | 0.8333 | 0.6783 |
+| source + full static views | 0.7833 | 0.6667 | 1.0000 | 1.0000 | 0.7948 |
+| validation-assisted | 0.8750 | 0.8333 | 1.0000 | 1.0000 | 0.8369 |
 
 Details: [Stage 1 baseline](docs/project/VULNSIGNAL_STAGE1_BASELINE_CHECK.md).
 
 This is a real dataset-development build, not final vulnerability truth. The current blocker for full strong-evidence status is T0024, which remains a medium CodeQL extractor blocker and needs a clean source-generated validation lane before promotion.
 
-Baseline results are reviewer-facing candidate-ordering metrics within each CVE task, not binary vulnerability accuracy.
+Baseline results are reviewer-facing candidate-ordering metrics within each CVE task, not binary vulnerability accuracy. The harder expanded check is designed to test generalized lifecycle/API, AST/CFG/DDG, callback/object, and validation representations rather than source-text memorization.
 
 ## Tooling Policy
 
