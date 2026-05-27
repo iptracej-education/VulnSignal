@@ -59,8 +59,6 @@ Active dataset development is now the 30-CVE evidence-grounded build. Detailed g
 
 ## Stage 1 Baseline Check
 
-This is a development check, not a dataset release.
-
 | Mode | MRR | Hit@1 | Hit@5 | Hit@10 | nDCG@10 |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | source-only | 0.5062 | 0.3333 | 0.6667 | 0.8333 | 0.5054 |
