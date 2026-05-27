@@ -52,7 +52,7 @@ Active dataset development is now the 30-CVE evidence-grounded build. Detailed g
 | raw candidate locations | 1,533 | task-grouped real-code candidate rows |
 | normalized candidate rows | 1,267 | duplicate source windows collapsed |
 | source-visible training rows | 939 | expanded same-protocol real-code pool |
-| API/protocol representation rows | 709 | CodeQL-derived generalized roles and scope constraints |
+| API/protocol representation rows | 1,009 raw / 747 normalized | generalized lifecycle/API roles and scope constraints |
 | candidate density | 42.2 normalized average | 3 tasks still below 30 due to source-ref gaps |
 | Joern AST/CFG candidates | 967 each | generalized structural views for canonical pre-expansion rows |
 | Joern DDG-supported candidates | 295 | model-visible dataflow support mask |
@@ -63,7 +63,7 @@ Active dataset development is now the 30-CVE evidence-grounded build. Detailed g
 | --- | ---: | ---: | ---: | ---: | ---: |
 | source-only | 0.5062 | 0.3333 | 0.6667 | 0.8333 | 0.5054 |
 | source + AST/CFG | 0.7628 | 0.6667 | 0.8333 | 0.8333 | 0.6783 |
-| source + full static views | 0.7833 | 0.6667 | 1.0000 | 1.0000 | 0.7948 |
+| source + full static views | 0.7917 | 0.6667 | 1.0000 | 1.0000 | 0.8021 |
 | validation-assisted | 0.8750 | 0.8333 | 1.0000 | 1.0000 | 0.8369 |
 
 Details: [Stage 1 baseline](docs/project/VULNSIGNAL_STAGE1_BASELINE_CHECK.md).
@@ -71,6 +71,8 @@ Details: [Stage 1 baseline](docs/project/VULNSIGNAL_STAGE1_BASELINE_CHECK.md).
 Stage 1 passes: full static views beat the source-only floor. 
 
 Baseline results are reviewer-facing candidate-ordering metrics within each CVE task, not binary vulnerability accuracy. The harder expanded check is designed to test generalized lifecycle/API, AST/CFG/DDG, callback/object, and validation representations rather than source-text memorization.
+
+Next dataset work: complete missing dataset checks, rebuild the model-ready files, and rerun the baseline.
 
 ## Tooling Policy
 
