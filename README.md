@@ -3,7 +3,7 @@
 [![Project](https://img.shields.io/badge/Project-VulnSignal%20-blue)](https://github.com/iptracej-education/VulnSignal/)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://www.python.org/)
 [![Scope](https://img.shields.io/badge/Scope-C%2FC%2B%2B%20Systems%20Code-purple)](#scope)
-[![Truth](https://img.shields.io/badge/Truth-Tool%20Grounded%20%2B%20UNKNOWN-brightgreen)](#core-workflow)
+[![Truth](https://img.shields.io/badge/Truth-Tool%20Grounded%20%2B%20UNKNOWN-brightgreen)](docs/project/VULNSIGNAL_CORE_WORKFLOW.md)
 
 VulnSignal is a tool-grounded vulnerability candidate-ranking framework and a deep-learning pipeline for vulnerability research. It does not train a generic vulnerable/non-vulnerable function classifier; it ranks suspicious source-code locations inside a real investigation, predicts likely violated rules, selects supporting evidence, and reports uncertainty. It does not claim final vulnerability truth from model output alone.
 
@@ -25,27 +25,13 @@ Tool-derived multiple representations strengthen inference by giving the model n
 
 Rule development is mechanism-first. For each CVE/task, VulnSignal must define the vulnerability mechanism, evidence targets, relevant existing CodeQL/CWE query basis, adapted or custom query, validation result, and evidence strength. Patch-derived draft classes describe rule origin only; they do not decide whether evidence is weak, medium, strong, or `UNKNOWN`.
 
-## Core Workflow
-
-```text
-input artifacts:
-  source snapshot + generated evidence + candidate source locations
-
-model outputs:
-  ranked file/function/line windows
-  likely rule, affected object, supporting evidence, and validation guidance
-
-validation records:
-  optional CodeQL/checker rule_matched, rule_not_matched, or rule_unknown
-```
-
-The model is a proposer, not a judge. Final vulnerability truth still requires checker/oracle evidence or explicit `UNKNOWN`.
-
-The primary dataset unit is `(task_instance, candidate_location)`.
+Core workflow details are kept in [VULNSIGNAL_CORE_WORKFLOW.md](docs/project/VULNSIGNAL_CORE_WORKFLOW.md).
 
 ## Model Inputs
 
 Each model row is one candidate code snippet linked to one task. The model uses three input groups:
+
+Primary dataset unit: `(task_instance, candidate_location)`.
 
 | Input group | What it contains |
 | --- | --- |
@@ -54,6 +40,38 @@ Each model row is one candidate code snippet linked to one task. The model uses 
 | Representations | Protocol/API events, AST facts, CFG/order facts, DFG/DDG/dataflow facts, graph/path facts, and optional agent-view text |
 
 All inputs join by `task_id` and `candidate_id`. Missing rows are recorded explicitly; the pipeline does not fabricate evidence.
+
+## Current Dataset Status
+
+Current phase: `real_dataset_30_cve`.
+
+Active dataset development is now the 30-CVE evidence-grounded build. Detailed generated reports and datasets remain local until a dataset release.
+
+| Data | Count | Status |
+| --- | ---: | --- |
+| CVE task instances | 30 | real dataset scope |
+| candidate locations | 1,233 | task-grouped candidate rows |
+| API/protocol representation rows | 709 | CodeQL-derived generalized roles and scope constraints |
+| candidate density | 41.1 average / 25 median | target is 30-50 candidates per CVE |
+| Joern AST/CFG candidates | 1,233 each | structural representations available for all candidates |
+| Joern DDG-supported candidates | 444 | model-visible dataflow support mask |
+
+## Stage 1 Baseline Check
+
+This is a development check, not a dataset release.
+
+| Mode | MRR | Hit@1 | Hit@5 | Hit@10 | nDCG@10 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| source-only | 0.5977 | 0.5000 | 0.8333 | 0.8333 | 0.5782 |
+| source + AST/CFG | 0.7302 | 0.6667 | 0.8333 | 0.8333 | 0.6015 |
+| source + full static views | 0.8667 | 0.8333 | 1.0000 | 1.0000 | 0.7922 |
+| validation-assisted | 0.8889 | 0.8333 | 1.0000 | 1.0000 | 0.8569 |
+
+Details: [Stage 1 baseline](docs/project/VULNSIGNAL_STAGE1_BASELINE_CHECK.md).
+
+This is a real dataset-development build, not final vulnerability truth. The current blocker for full strong-evidence status is T0024, which remains a medium CodeQL extractor blocker and needs a clean source-generated validation lane before promotion.
+
+Baseline results are reviewer-facing candidate-ordering metrics within each CVE task, not binary vulnerability accuracy.
 
 ## Tooling Policy
 
@@ -69,30 +87,6 @@ All inputs join by `task_id` and `candidate_id`. Missing rows are recorded expli
 - Grep-only matching, invented protocol traces, and unanchored LLM summaries are not tool-grounded data.
 
 Canonical CodeQL validators are internal working artifacts until they are promoted into the public repository snapshot.
-
-## Current Dataset Status
-
-Current phase: `evidence_grounding_smoke`.
-
-The active smoke dataset and generated status reports are internal working artifacts until they are promoted into the public repository snapshot.
-
-Current base status:
-
-| Data | Count | Status |
-| --- | ---: | --- |
-| task instances | 60 | smoke scale passed |
-| expanded candidate locations | 2,321 | row-count passed |
-| source windows | 2,321 | source-only baseline ready |
-| labels | 2,321 | mixed/weak, not training-ready |
-| candidate representation index | 2,321 | scaffold ready |
-| candidates with any non-source tool view | 2,321 / 2,321 | representation scaffold ready |
-| candidates with active rule-evidence view | 210 / 2,321 | sparse validation evidence |
-| CodeQL validation attempts | 230 | 139 matched, 28 not matched, 63 unknown |
-| CodeQL conditional labels | 2 positive, 4 negative | far too few |
-| proposed CodeQL label promotions | 40 | audit-only; labels unchanged |
-| dynamic-oracle labels | 0 | not available |
-
-This is a row-count and pipeline smoke proof, not a training-ready dataset. The next blocker is label strength: accept CodeQL evidence as sparse, reduce high-value `rule_unknown` rows where practical, preserve the rest with explicit substatus, strengthen object/path/callback-aware validators, and promote labels only under a separate validation policy.
 
 ## Key Documents
 

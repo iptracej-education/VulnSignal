@@ -1,0 +1,23 @@
+SESSION_HANDOFF.md
+
+.vscode/
+.tools/
+__pycache__/
+SESSION_HANDOFF.md
+*:Zone.Identifier
+
+# Local/generated development artifacts. Promote individual files later with
+# `git add -f` only when they are intentionally part of a public release.
+diagrams/
+docs/feasibility/
+docs/project/*
+!docs/project/
+!docs/project/VULNSIGNAL_CORE_WORKFLOW.md
+!docs/project/VULNSIGNAL_STAGE1_BASELINE_CHECK.md
+docs/research_papers/
+docs/slides/
+reports/
+rules/
+schemas/
+scripts/
+validators/
