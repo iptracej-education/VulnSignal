@@ -77,7 +77,7 @@ Baseline results are reviewer-facing candidate-ordering metrics within each CVE 
 - Joern is the primary scalable representation extractor for AST/CFG/DDG/callgraph/callback-style views.
 - Coccinelle provides Linux lifecycle/API semantic-pattern evidence.
 - SVF/LLVM, Clang tooling, and Tree-sitter may add focused views when useful.
-- CodeQL is a sparse high-confidence validation lane for selected vulnerability rules, not the default representation extractor and not a required inference dependency.
+- CodeQL is a high-confidence validation lane for selected vulnerability rules, not the default representation extractor and not a required inference dependency.
 - CodeQL validation may run during dataset construction, offline CI validation, or optional top-k validation after ranking.
 - When CodeQL is attempted, each `(candidate_id, rule_id)` receives `rule_matched`, `rule_not_matched`, or `rule_unknown`.
 - A CodeQL rule must point to a CVE mechanism profile and evidence target. Before custom QL is written, the pipeline searches existing CodeQL C/C++ queries, CWE coverage, CodeQL libraries, and local validators.
