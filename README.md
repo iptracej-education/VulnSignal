@@ -70,7 +70,7 @@ This is a development check, not a dataset release.
 
 Details: [Stage 1 baseline](docs/project/VULNSIGNAL_STAGE1_BASELINE_CHECK.md).
 
-This is a real dataset-development build, not final vulnerability truth. The current blocker for full strong-evidence status is T0024, which remains a medium CodeQL extractor blocker and needs a clean source-generated validation lane before promotion.
+Stage 1 passes: full static views beat the source-only floor. Our next step is candidate-density repair before expansion.
 
 Baseline results are reviewer-facing candidate-ordering metrics within each CVE task, not binary vulnerability accuracy. The harder expanded check is designed to test generalized lifecycle/API, AST/CFG/DDG, callback/object, and validation representations rather than source-text memorization.
 
