@@ -51,7 +51,7 @@ Active dataset development is now the 30-CVE evidence-grounded build. Detailed g
 | CVE task instances | 30 | real dataset scope |
 | candidate locations | 1,233 | task-grouped candidate rows |
 | API/protocol representation rows | 709 | CodeQL-derived generalized roles and scope constraints |
-| candidate density | 41.1 average / 25 median | target is 30-50 candidates per CVE |
+| candidate density | 41.1 average / 25 median | normalize for 50-100 distinct eval candidates; allow 100+ training candidates |
 | Joern AST/CFG candidates | 1,233 each | structural representations available for all candidates |
 | Joern DDG-supported candidates | 444 | model-visible dataflow support mask |
 
