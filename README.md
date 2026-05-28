@@ -62,7 +62,7 @@ Active dataset development is now the selected 100-CVE evidence-grounded build. 
 | audit auxiliary pairs | 2,451 | patch-weak context pairs for low-weight auxiliary training |
 | strict-positive task split | 16 train / 10 validation / 15 test | deterministic stratified split, no label changes |
 
-## Current Baseline Development Status (5/28/2026) 
+## Current Baseline Status (5/28/2026) 
 
 This table checks how well the linear and neural models rank candidate code locations for CVE review.
 
