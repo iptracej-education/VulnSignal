@@ -61,10 +61,10 @@ Active dataset development is now the 30-CVE evidence-grounded build. Detailed g
 
 | Mode | MRR | Hit@1 | Hit@5 | Hit@10 | nDCG@10 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| source-only | 0.5062 | 0.3333 | 0.6667 | 0.8333 | 0.5054 |
-| source + AST/CFG | 0.7628 | 0.6667 | 0.8333 | 0.8333 | 0.6783 |
-| source + full static views | 0.7917 | 0.6667 | 1.0000 | 1.0000 | 0.8021 |
-| validation-assisted | 0.8750 | 0.8333 | 1.0000 | 1.0000 | 0.8369 |
+| source-only | 0.4856 | 0.3333 | 0.6667 | 0.8333 | 0.4817 |
+| source + AST/CFG | 0.7628 | 0.6667 | 0.8333 | 0.8333 | 0.6779 |
+| source + full static views | 0.7917 | 0.6667 | 1.0000 | 1.0000 | 0.8036 |
+| validation-assisted | 0.8889 | 0.8333 | 1.0000 | 1.0000 | 0.8587 |
 
 Details: [Stage 1 baseline](docs/project/VULNSIGNAL_STAGE1_BASELINE_CHECK.md).
 
@@ -72,7 +72,7 @@ Stage 1 passes: full static views beat the source-only floor.
 
 Baseline results are reviewer-facing candidate-ordering metrics within each CVE task, not binary vulnerability accuracy. The harder expanded check is designed to test generalized lifecycle/API, AST/CFG/DDG, callback/object, and validation representations rather than source-text memorization.
 
-Next dataset work: review the newly checked candidates, finish the remaining dataset checks, and rerun the baseline after any label changes.
+Next dataset work: finish the remaining dataset checks and rerun the baseline after any label changes.
 
 ## Tooling Policy
 
