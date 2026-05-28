@@ -82,7 +82,7 @@ The linear rows are representation diagnostics; the neural rows are the frozen v
 
 Details: [baseline evaluation](docs/project/VULNSIGNAL_BASELINE_EVALUATION.md).
 
-Next dataset work: start E300 admission-pool screening. Do not tune E100 models further.
+Next dataset work: start E300 admission-pool screening. 
 
 ## Tooling Policy
 
