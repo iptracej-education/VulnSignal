@@ -42,37 +42,47 @@ All inputs join by `task_id` and `candidate_id`. Missing rows are recorded expli
 
 ## Current Dataset Status
 
-Current phase: `E030 complete; E100 staging next`.
+Current phase: `E100 representation-complete; strict-eval-stable; neural v0 frozen diagnostic baseline accepted`.
 
-Active dataset development is now the 30-CVE evidence-grounded build. Detailed generated reports and datasets remain local until a dataset release.
+Active dataset development is now the selected 100-CVE evidence-grounded build. Detailed generated reports and datasets remain local until a dataset release.
 
 | Data | Count | Status |
 | --- | ---: | --- |
-| CVE task instances | 30 | real dataset scope |
-| raw candidate locations | 1,533 | task-grouped real-code candidate rows |
-| normalized candidate rows | 1,267 | duplicate source windows collapsed |
-| source-visible training rows | 939 | expanded same-protocol real-code pool |
-| Generalized API/protocol representation rows | 1,009 raw / 747 normalized | generalized lifecycle/API roles and scope constraints |
-| candidate density | 42.2 normalized average | 3 tasks still below 30 due to source-ref gaps |
-| Joern AST/CFG candidates | 967 each | generalized structural views for canonical pre-expansion rows |
-| Joern DDG-supported candidates | 295 | model-visible dataflow support mask |
+| CVE task instances | 100 | E100 representation-complete scope |
+| raw candidate locations | 4,422 | task-grouped real-code candidate rows |
+| normalized candidate rows | 3,904 | duplicate source windows collapsed |
+| raw candidate density | 44.22 avg / 30 min | all tasks meet the raw 30-candidate floor |
+| normalized density | 39.04 avg / 30 min | all tasks meet the normalized 30-candidate floor |
+| source-window rows | 3,305 | all tasks meet the source-visible 30-candidate floor |
+| API/protocol rows | 3,904 | model-ready generalized protocol representation |
+| CodeQL validation rows | 503 | model-ready sparse validation view |
+| Joern AST/CFG rows | 3,904 each | complete model-ready structural views |
+| Joern DDG rows | 1,056 | model-ready dataflow-support view |
+| strict ranking pairs | 1,676 | model-ready strong-evidence ranking supervision |
+| audit auxiliary pairs | 2,451 | patch-weak context pairs for low-weight auxiliary training |
+| strict-positive task split | 16 train / 10 validation / 15 test | deterministic stratified split, no label changes |
 
-## Stage 1 Baseline Check
+## Development Baseline Check
 
-| Mode | MRR | Hit@1 | Hit@5 | Hit@10 | nDCG@10 |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| source-only | 0.4856 | 0.3333 | 0.6667 | 0.8333 | 0.4817 |
-| source + AST/CFG | 0.7628 | 0.6667 | 0.8333 | 0.8333 | 0.6779 |
-| source + full static views | 0.7917 | 0.6667 | 1.0000 | 1.0000 | 0.8036 |
-| validation-assisted (with generalized rule) | 0.8889 | 0.8333 | 1.0000 | 1.0000 | 0.8684 |
+Selected E100 strict-test diagnostic. The dataset has 100 CVE tasks; strict metrics below are computed only on held-out test tasks that currently have reviewed strong-positive labels. The current split is the frozen strict-positive stratified E100 evaluation split.
 
-Details: [Stage 1 baseline](docs/project/VULNSIGNAL_STAGE1_BASELINE_CHECK.md).
+Full static views means API/protocol plus Joern AST/CFG/DDG/callback/lifecycle views. No Joern means Joern structural rows are intentionally hidden. Validation-assisted rows include CodeQL validation features and are offline diagnostics. Neural rows are three-seed means.
 
-Stage 1 passes: full static views and validated-assisted beat the source-only view. 
+| Model | Mode | Strict-positive test tasks evaluated | MRR | Hit@1 | Hit@5 | Hit@10 | nDCG@10 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| linear | source-only | 15 | 0.3109 | 0.1333 | 0.5333 | 0.5333 | 0.2701 |
+| linear | source + Joern AST/CFG | 15 | 0.5020 | 0.4000 | 0.7333 | 0.7333 | 0.4612 |
+| linear | source + full static views | 15 | 0.6848 | 0.6000 | 0.7333 | 0.8000 | 0.6196 |
+| linear | validation-assisted, no Joern | 15 | 0.9556 | 0.9333 | 1.0000 | 1.0000 | 0.9667 |
+| linear | validation-assisted + full static views | 15 | 0.9556 | 0.9333 | 1.0000 | 1.0000 | 0.9613 |
+| neural v0 | full gated | 15 | 0.9315 | 0.9111 | 0.9778 | 0.9778 | 0.9396 |
+| neural v0 | full gated, no-shortcut | 15 | 0.8691 | 0.8222 | 0.9556 | 0.9778 | 0.8949 |
 
-This baseline result should not viewed as binary vulnerability accuracy, rather candidate-ordering metrics within each CVE task - how well the model identify positive and negative vulnerability source code snippets by ranking. The Stage 1 baseline check is designed to test how well the model learn generalized API/protocol, AST/CFG/DDG, callback/object, and validation representations rather than memorize source-text for ranking. 
+The linear rows are representation diagnostics; the neural rows are the frozen v0 diagnostic baseline. `full gated` uses all declared source, validation/protocol, lifecycle, static, and missing-view feature blocks with gated fusion. `full gated, no-shortcut` repeats the same model while masking patch/proximity/origin shortcut-style feature values.
 
-Next dataset work: stage the 100-CVE build, check missing files, and rerun baselines after the E100 package is built.
+Details: [baseline evaluation](docs/project/VULNSIGNAL_BASELINE_EVALUATION.md).
+
+Next dataset work: start E300 admission-pool screening. Do not tune E100 models further.
 
 ## Tooling Policy
 
@@ -94,6 +104,9 @@ Canonical CodeQL validators are internal working artifacts until they are promot
 - [README.md](README.md)
 - [PROPOSAL.md](PROPOSAL.md)
 - [Document Index](DOCUMENT_INDEX.md)
+- [Core workflow](docs/project/VULNSIGNAL_CORE_WORKFLOW.md)
+- [Evidence policy](docs/project/VULNSIGNAL_EVIDENCE_POLICY.md)
+- [Baseline evaluation](docs/project/VULNSIGNAL_BASELINE_EVALUATION.md)
 
 ## Alignment Gate
 
