@@ -17,18 +17,18 @@ Source-code machine learning has moved from token-only models toward multi-repre
 
 Real vulnerability research is not a balanced function-classification task. A reviewer starts with a project snapshot, patch/advisory/checker question, crash clue, or rule family, then needs to know which file/function/line candidates deserve attention first. VulnSignal treats this as task-local candidate ranking.
 
-Tool-grounding gives the model higher-confidence suspicious-code candidates while keeping the ranking auditable. Each candidate links back to a source version, concrete location, generated representation records, and available validator evidence. CodeQL evidence is expected to be sparse in C/C++ systems code; when CodeQL runs, the validation record says `rule_matched`, `rule_not_matched`, or `rule_unknown` with a substatus.
+Tool-grounding gives the model higher-confidence suspicious-code candidates while keeping the ranking auditable. Each candidate links back to a source version, concrete location, generated representation records, and available validator evidence. CodeQL evidence is expected to be sparse in C/C++ systems code due to compilation limitations across architectures, versions, drivers, I/O, and macro/header consistency.
 
-LLM-assisted workflows can help read code, draft hypotheses, summarize evidence, and rerank candidates, but an LLM-only result is not reproducible validation. VulnSignal assumes LLM output is auxiliary unless it is tied back to source anchors and tool records.
+The biggest advantage of CodeQL is to generalize CVE/CWE mechanism into checkable rules and pattern protocols. For each CVE/task, VulnSignal will define the vulnerability mechanism, evidence targets, relevant existing CodeQL/CWE query basis, generalized custom query, validation result, and evidence strength.
 
 Tool-derived multiple representations strengthen inference by giving the model normalized evidence channels beyond raw source tokens. When source, lifecycle/API, AST/CFG/DFG, callback, object, and validation views agree, the ranker can assign higher confidence to suspicious candidates; when views are missing or conflicting, it should preserve uncertainty.
 
-Rule development is mechanism-first. For each CVE/task, VulnSignal must define the vulnerability mechanism, evidence targets, relevant existing CodeQL/CWE query basis, adapted or custom query, validation result, and evidence strength. Patch-derived draft classes describe rule origin only; they do not decide whether evidence is weak, medium, strong, or `UNKNOWN`.
+LLM-assisted workflow might help read code, draft hypotheses, summarize evidence, and re-rank candidates, but an LLM-only result is not reproducible validation. VulnSignal assumes LLM output is auxiliary unless it is tied back to source anchors and our static/dynamic analysis tool-grounded records.
 
 
 ## Model Inputs
 
-Each model row is one candidate code snippet linked to one task. The model uses three input groups:
+Each dataset row is one candidate code snippet linked to one task. The model uses three input groups:
 
 Primary dataset unit: `(task_instance, candidate_location)`.
 
@@ -36,13 +36,13 @@ Primary dataset unit: `(task_instance, candidate_location)`.
 | --- | --- |
 | Source code | Candidate file/function/line snippet with span markers |
 | Tool-grounded linked tables | Task rows, candidate rows, CodeQL validation rows, labels, evidence strength, and `UNKNOWN` reasons |
-| Representations | Protocol/API events, AST facts, CFG/order facts, DFG/DDG/dataflow facts, graph/path facts, and optional agent-view text |
+| Representations | Generalized protocol/API events, AST facts, CFG/order facts, DFG/DDG/dataflow facts, graph/path facts, and optional agent-view text |
 
 All inputs join by `task_id` and `candidate_id`. Missing rows are recorded explicitly; the pipeline does not fabricate evidence.
 
 ## Current Dataset Status
 
-Current phase: `real_dataset_30_cve`.
+Current phase: `E030 complete; E100 staging next`.
 
 Active dataset development is now the 30-CVE evidence-grounded build. Detailed generated reports and datasets remain local until a dataset release.
 
@@ -52,7 +52,7 @@ Active dataset development is now the 30-CVE evidence-grounded build. Detailed g
 | raw candidate locations | 1,533 | task-grouped real-code candidate rows |
 | normalized candidate rows | 1,267 | duplicate source windows collapsed |
 | source-visible training rows | 939 | expanded same-protocol real-code pool |
-| API/protocol representation rows | 1,009 raw / 747 normalized | generalized lifecycle/API roles and scope constraints |
+| Generalized API/protocol representation rows | 1,009 raw / 747 normalized | generalized lifecycle/API roles and scope constraints |
 | candidate density | 42.2 normalized average | 3 tasks still below 30 due to source-ref gaps |
 | Joern AST/CFG candidates | 967 each | generalized structural views for canonical pre-expansion rows |
 | Joern DDG-supported candidates | 295 | model-visible dataflow support mask |
@@ -64,15 +64,15 @@ Active dataset development is now the 30-CVE evidence-grounded build. Detailed g
 | source-only | 0.4856 | 0.3333 | 0.6667 | 0.8333 | 0.4817 |
 | source + AST/CFG | 0.7628 | 0.6667 | 0.8333 | 0.8333 | 0.6779 |
 | source + full static views | 0.7917 | 0.6667 | 1.0000 | 1.0000 | 0.8036 |
-| validation-assisted | 0.8889 | 0.8333 | 1.0000 | 1.0000 | 0.8684 |
+| validation-assisted (with generalized rule) | 0.8889 | 0.8333 | 1.0000 | 1.0000 | 0.8684 |
 
 Details: [Stage 1 baseline](docs/project/VULNSIGNAL_STAGE1_BASELINE_CHECK.md).
 
-Stage 1 passes: full static views beat the source-only floor. 
+Stage 1 passes: full static views and validated-assisted beat the source-only view. 
 
-Baseline results are reviewer-facing candidate-ordering metrics within each CVE task, not binary vulnerability accuracy. The harder expanded check is designed to test generalized lifecycle/API, AST/CFG/DDG, callback/object, and validation representations rather than source-text memorization.
+This baseline result should not viewed as binary vulnerability accuracy, rather candidate-ordering metrics within each CVE task - how well the model identify positive and negative vulnerability source code snippets by ranking. The Stage 1 baseline check is designed to test how well the model learn generalized API/protocol, AST/CFG/DDG, callback/object, and validation representations rather than memorize source-text for ranking. 
 
-Next dataset work: continue missing dataset checks and rerun the baseline after label changes.
+Next dataset work: stage the 100-CVE build, check missing files, and rerun baselines after the E100 package is built.
 
 ## Tooling Policy
 
