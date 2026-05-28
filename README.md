@@ -62,9 +62,18 @@ Active dataset development is now the selected 100-CVE evidence-grounded build. 
 | audit auxiliary pairs | 2,451 | patch-weak context pairs for low-weight auxiliary training |
 | strict-positive task split | 16 train / 10 validation / 15 test | deterministic stratified split, no label changes |
 
-## Development Baseline Check
+## Baseline Status
 
-Selected E100 strict-test diagnostic. The dataset has 100 CVE tasks; strict metrics below are computed only on held-out test tasks that currently have reviewed strong-positive labels. The current split is the frozen strict-positive stratified E100 evaluation split.
+This table checks how well the linear and neural models rank candidate code locations for CVE review.
+
+| Scope | Count |
+| --- | ---: |
+| total CVE tasks | 100 |
+| total normalized candidates | 3,904 |
+| task split | 70% train / 10% validation / 20% test |
+| test CVEs not used for training | 20 |
+| test CVEs with reviewed strong evidence | 15 |
+| test CVEs pending strong-evidence review | 5 |
 
 Full static views means API/protocol plus Joern AST/CFG/DDG/callback/lifecycle views. No Joern means Joern structural rows are intentionally hidden. Validation-assisted rows include CodeQL validation features and are offline diagnostics. Neural rows are three-seed means.
 
