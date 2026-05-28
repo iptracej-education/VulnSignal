@@ -40,7 +40,7 @@ Primary dataset unit: `(task_instance, candidate_location)`.
 
 All inputs join by `task_id` and `candidate_id`. Missing rows are recorded explicitly; the pipeline does not fabricate evidence.
 
-## Current Dataset Status
+## Current Dataset Status (5/28/2026) 
 
 Current phase: `E100 representation-complete; strict-eval-stable; neural v0 frozen diagnostic baseline accepted`.
 
@@ -62,18 +62,18 @@ Active dataset development is now the selected 100-CVE evidence-grounded build. 
 | audit auxiliary pairs | 2,451 | patch-weak context pairs for low-weight auxiliary training |
 | strict-positive task split | 16 train / 10 validation / 15 test | deterministic stratified split, no label changes |
 
-## Baseline Status
+## Current Baseline Development Status (5/28/2026) 
 
 This table checks how well the linear and neural models rank candidate code locations for CVE review.
 
 | Scope | Count |
 | --- | ---: |
-| total CVE tasks | 100 |
-| total normalized candidates | 3,904 |
-| task split | 70% train / 10% validation / 20% test |
-| test CVEs not used for training | 20 |
-| test CVEs with reviewed strong evidence | 15 |
-| test CVEs pending strong-evidence review | 5 |
+| total dataset | 100 CVEs / 3,904 candidates |
+| training CVEs | 70 CVEs / 2,515 candidates |
+| validation CVEs | 10 CVEs / 407 candidates |
+| test CVEs | 20 CVEs / 982 candidates |
+| test CVEs scored in this table | 15 |
+| test CVEs not scored yet | 5 |
 
 Full static views means API/protocol plus Joern AST/CFG/DDG/callback/lifecycle views. No Joern means Joern structural rows are intentionally hidden. Validation-assisted rows include CodeQL validation features and are offline diagnostics. Neural rows are three-seed means.
 
