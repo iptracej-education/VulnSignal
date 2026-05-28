@@ -72,7 +72,7 @@ Stage 1 passes: full static views beat the source-only floor.
 
 Baseline results are reviewer-facing candidate-ordering metrics within each CVE task, not binary vulnerability accuracy. The harder expanded check is designed to test generalized lifecycle/API, AST/CFG/DDG, callback/object, and validation representations rather than source-text memorization.
 
-Next dataset work: complete missing dataset checks, rebuild the model-ready files, and rerun the baseline.
+Next dataset work: review the newly checked candidates, finish the remaining dataset checks, and rerun the baseline after any label changes.
 
 ## Tooling Policy
 
