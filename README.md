@@ -64,7 +64,7 @@ Active dataset development is now the 30-CVE evidence-grounded build. Detailed g
 | source-only | 0.4856 | 0.3333 | 0.6667 | 0.8333 | 0.4817 |
 | source + AST/CFG | 0.7628 | 0.6667 | 0.8333 | 0.8333 | 0.6779 |
 | source + full static views | 0.7917 | 0.6667 | 1.0000 | 1.0000 | 0.8036 |
-| validation-assisted | 0.8889 | 0.8333 | 1.0000 | 1.0000 | 0.8587 |
+| validation-assisted | 0.8889 | 0.8333 | 1.0000 | 1.0000 | 0.8684 |
 
 Details: [Stage 1 baseline](docs/project/VULNSIGNAL_STAGE1_BASELINE_CHECK.md).
 
@@ -72,7 +72,7 @@ Stage 1 passes: full static views beat the source-only floor.
 
 Baseline results are reviewer-facing candidate-ordering metrics within each CVE task, not binary vulnerability accuracy. The harder expanded check is designed to test generalized lifecycle/API, AST/CFG/DDG, callback/object, and validation representations rather than source-text memorization.
 
-Next dataset work: finish the remaining dataset checks and rerun the baseline after any label changes.
+Next dataset work: continue missing dataset checks and rerun the baseline after label changes.
 
 ## Tooling Policy
 
