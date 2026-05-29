@@ -91,7 +91,7 @@ The linear rows are representation diagnostics; the neural rows are the frozen v
 
 Details: [baseline evaluation](docs/project/VULNSIGNAL_BASELINE_EVALUATION.md).
 
-Next dataset work: start E300 admission-pool screening. 
+Next dataset work: E300 lifetime-family admission hardening. Current screen has 2,147 CVEs scored, 300 provisional E300 CVEs proposed, and no shortfall against the 600-CVE screening floor. The new selected E300 queue has 5 ready-now review candidates, 149 materialization/source-window candidates, and 46 patch-validation reserve candidates. Batch 001 source windows are materialized, but candidate expansion and Joern extraction are still needed. No E300 model-ready build has been created.
 
 ## Tooling Policy
 
