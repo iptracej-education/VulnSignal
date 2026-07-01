@@ -1,0 +1,75 @@
+{
+  "artifact_type": "sanitized_cve_composition_sample_summary",
+  "schema_version": "vulnsignal.examples.cve_composition_sample.v1",
+  "source_project": "VulnSignal CVE composition dataset",
+  "source_dataset_shape": {
+    "cve_count": 300,
+    "real_candidates_per_cve": 1,
+    "data_synthesis_candidates_per_cve": 90,
+    "synthesis_split_per_cve": {
+      "single_function_single_file": 30,
+      "multi_function_single_file": 30,
+      "multi_function_multi_file": 30
+    },
+    "candidate_variance_artifacts": 81900,
+    "match_label_records": 54600,
+    "full_representation_records": 382200,
+    "representation_bearing_artifacts": [
+      "vulnerable_code",
+      "fixed_code"
+    ],
+    "construction_audit_only_artifacts": [
+      "diff_code"
+    ],
+    "representation_families": [
+      "AST",
+      "CFG",
+      "DFG",
+      "DDG",
+      "CPG",
+      "callgraph",
+      "CodeQL_path"
+    ]
+  },
+  "sample_scope": {
+    "case_count": 1,
+    "case_id": "case_example_async_work_001",
+    "sample_records": 2,
+    "candidate_structure": "multi_function_multi_file",
+    "mechanism_family_primary": "async_work_lifetime",
+    "secondary_mechanism_families": [
+      "callback_registration_lifetime",
+      "concurrency_lifetime"
+    ]
+  },
+  "release_projection": {
+    "included": [
+      "L0 event types",
+      "L0 relation types",
+      "L2 mechanism family",
+      "L2 mechanism roles",
+      "L2 mechanism relation types",
+      "risk and invariant tags",
+      "separate evidence-based labels"
+    ],
+    "excluded": [
+      "raw source code",
+      "patch or diff text",
+      "CVE ID",
+      "file paths",
+      "function names",
+      "line numbers",
+      "source artifact IDs",
+      "raw CodeQL fact IDs",
+      "raw Joern fact IDs",
+      "local filesystem paths",
+      "construction-only matched tokens"
+    ]
+  },
+  "metrics_snapshot": {
+    "aggregate_real_holdout_transfer_accuracy": 0.905,
+    "shuffled_label_p95": 0.543333,
+    "real_over_shuffled_margin": 0.361667
+  }
+}
+

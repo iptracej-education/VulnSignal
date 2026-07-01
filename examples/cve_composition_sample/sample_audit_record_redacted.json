@@ -1,0 +1,156 @@
+{
+  "artifact_type": "redacted_l1_audit_record_example",
+  "schema_version": "vulnsignal.examples.redacted_l1_audit.v1",
+  "sample_id": "sample_000001",
+  "case_id": "case_example_async_work_001",
+  "model_visible": false,
+  "purpose": "Show how the dataset keeps an audit trail without exposing source-specific details in model input.",
+  "redaction_policy": {
+    "redacted": [
+      "CVE ID",
+      "source file paths",
+      "function names",
+      "line numbers",
+      "source hashes",
+      "raw CodeQL facts",
+      "raw Joern facts",
+      "local filesystem paths",
+      "construction-only matched tokens"
+    ],
+    "retained": [
+      "tool family coverage",
+      "normalized evidence status",
+      "step and relation structure",
+      "label gate decision"
+    ]
+  },
+  "source_units_redacted": [
+    {
+      "unit_id": "U1",
+      "file_path": "REDACTED",
+      "function_name": "REDACTED",
+      "line_range": "REDACTED",
+      "model_visible": false
+    },
+    {
+      "unit_id": "U2",
+      "file_path": "REDACTED",
+      "function_name": "REDACTED",
+      "line_range": "REDACTED",
+      "model_visible": false
+    },
+    {
+      "unit_id": "U3",
+      "file_path": "REDACTED",
+      "function_name": "REDACTED",
+      "line_range": "REDACTED",
+      "model_visible": false
+    }
+  ],
+  "layer_1_candidate_grounded_step_chain_redacted": [
+    {
+      "step_id": "T1",
+      "step_value": "candidate_local_async_or_worker_entry_observed",
+      "assembled_from_l0_event_ids": [
+        "E1",
+        "E2"
+      ],
+      "tool_validation": {
+        "status": "pass",
+        "families_present": [
+          "AST",
+          "CFG",
+          "CPG",
+          "callgraph",
+          "CodeQL_path"
+        ]
+      }
+    },
+    {
+      "step_id": "T2",
+      "step_value": "candidate_local_same_lifetime_object_observed",
+      "assembled_from_l0_event_ids": [
+        "E7",
+        "E8"
+      ],
+      "tool_validation": {
+        "status": "pass",
+        "families_present": [
+          "DFG",
+          "DDG",
+          "CPG",
+          "CodeQL_path"
+        ]
+      }
+    },
+    {
+      "step_id": "T3",
+      "step_value": "candidate_local_missing_deferred_work_or_callback_guard",
+      "assembled_from_l0_event_ids": [
+        "E9",
+        "E10",
+        "E11"
+      ],
+      "tool_validation": {
+        "status": "pass",
+        "families_present": [
+          "AST",
+          "CFG",
+          "CodeQL_path"
+        ]
+      }
+    },
+    {
+      "step_id": "T4",
+      "step_value": "candidate_local_interleaving_possible",
+      "assembled_from_l0_event_ids": [
+        "E12"
+      ],
+      "tool_validation": {
+        "status": "pass",
+        "families_present": [
+          "CFG",
+          "callgraph",
+          "CodeQL_path"
+        ]
+      }
+    }
+  ],
+  "required_relations_redacted": [
+    {
+      "relation_id": "RT1",
+      "relation_type": "work_reaches_object_use",
+      "from_step_id": "T1",
+      "to_step_id": "T2",
+      "tool_validation": {
+        "status": "pass"
+      }
+    },
+    {
+      "relation_id": "RT2",
+      "relation_type": "missing_cancel_applies_to_deferred_work",
+      "from_step_id": "T3",
+      "to_step_id": "T1",
+      "tool_validation": {
+        "status": "pass"
+      }
+    },
+    {
+      "relation_id": "RT3",
+      "relation_type": "same_object_flows_to_use",
+      "from_step_id": "T2",
+      "to_step_id": "T2",
+      "tool_validation": {
+        "status": "pass"
+      }
+    }
+  ],
+  "label_gate": {
+    "decision": "accepted",
+    "vulnerability_present": 1,
+    "match_type": "complete_vulnerable_match",
+    "label_source": "evidence_based_composition_match",
+    "label_is_absolute_truth_claim": false
+  }
+}
+

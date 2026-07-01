@@ -1,0 +1,234 @@
+{
+  "artifact_type": "sanitized_l0_l2_model_input_example",
+  "schema_version": "vulnsignal.examples.l0_l2_record.v1",
+  "sample_id": "sample_000001",
+  "case_id": "case_example_async_work_001",
+  "model_visible": true,
+  "join_metadata": {
+    "candidate_structure": "multi_function_multi_file",
+    "candidate_origin": "data_synthesis",
+    "model_visible": false
+  },
+  "x": {
+    "layer_0_normalized_execution_events": {
+      "events": [
+        {
+          "event_id": "E1",
+          "event_type": "async_entry_observed"
+        },
+        {
+          "event_id": "E2",
+          "event_type": "worker_entry_observed"
+        },
+        {
+          "event_id": "E3",
+          "event_type": "work_scheduled_observed"
+        },
+        {
+          "event_id": "E4",
+          "event_type": "callback_entry_observed"
+        },
+        {
+          "event_id": "E5",
+          "event_type": "callback_registered_observed"
+        },
+        {
+          "event_id": "E6",
+          "event_type": "object_published_observed"
+        },
+        {
+          "event_id": "E7",
+          "event_type": "same_object_observed"
+        },
+        {
+          "event_id": "E8",
+          "event_type": "object_use_observed"
+        },
+        {
+          "event_id": "E9",
+          "event_type": "work_cancel_absent"
+        },
+        {
+          "event_id": "E10",
+          "event_type": "work_flush_absent"
+        },
+        {
+          "event_id": "E11",
+          "event_type": "callback_unregister_absent"
+        },
+        {
+          "event_id": "E12",
+          "event_type": "interleaving_possible"
+        }
+      ],
+      "relations": [
+        {
+          "relation_id": "ER1",
+          "from_event_id": "E3",
+          "to_event_id": "E8",
+          "relation_type": "work_reaches_object_use"
+        },
+        {
+          "relation_id": "ER2",
+          "from_event_id": "E4",
+          "to_event_id": "E8",
+          "relation_type": "callback_reaches_object_use"
+        },
+        {
+          "relation_id": "ER3",
+          "from_event_id": "E7",
+          "to_event_id": "E8",
+          "relation_type": "same_object_flow"
+        },
+        {
+          "relation_id": "ER4",
+          "from_event_id": "E12",
+          "to_event_id": "E8",
+          "relation_type": "may_interleave_with"
+        }
+      ]
+    },
+    "layer_2_role_based_normalized_mechanism": {
+      "mechanism_family_primary": "async_work_lifetime",
+      "mechanism_family_secondary": [
+        "callback_registration_lifetime",
+        "concurrency_lifetime"
+      ],
+      "mechanism_steps": [
+        {
+          "mechanism_step_id": "M1",
+          "role": "async_path",
+          "derived_from_event_ids": [
+            "E1"
+          ]
+        },
+        {
+          "mechanism_step_id": "M2",
+          "role": "worker_path",
+          "derived_from_event_ids": [
+            "E2"
+          ]
+        },
+        {
+          "mechanism_step_id": "M3",
+          "role": "callback_path",
+          "derived_from_event_ids": [
+            "E4"
+          ]
+        },
+        {
+          "mechanism_step_id": "M4",
+          "role": "shared_lifetime_object",
+          "derived_from_event_ids": [
+            "E7"
+          ]
+        },
+        {
+          "mechanism_step_id": "M5",
+          "role": "object_used",
+          "derived_from_event_ids": [
+            "E8"
+          ]
+        },
+        {
+          "mechanism_step_id": "M6",
+          "role": "missing_cancel_guard",
+          "derived_from_event_ids": [
+            "E9"
+          ]
+        },
+        {
+          "mechanism_step_id": "M7",
+          "role": "missing_flush_guard",
+          "derived_from_event_ids": [
+            "E10"
+          ]
+        },
+        {
+          "mechanism_step_id": "M8",
+          "role": "missing_unregister_guard",
+          "derived_from_event_ids": [
+            "E11"
+          ]
+        },
+        {
+          "mechanism_step_id": "M9",
+          "role": "unsafe_interleaving",
+          "derived_from_event_ids": [
+            "E12"
+          ]
+        }
+      ],
+      "mechanism_relations": [
+        {
+          "mechanism_relation_id": "MR1",
+          "from_mechanism_step_id": "M2",
+          "to_mechanism_step_id": "M5",
+          "relation_type": "work_reaches_object_use"
+        },
+        {
+          "mechanism_relation_id": "MR2",
+          "from_mechanism_step_id": "M3",
+          "to_mechanism_step_id": "M5",
+          "relation_type": "callback_reaches_object_use"
+        },
+        {
+          "mechanism_relation_id": "MR3",
+          "from_mechanism_step_id": "M4",
+          "to_mechanism_step_id": "M5",
+          "relation_type": "same_object_flows_to_use"
+        },
+        {
+          "mechanism_relation_id": "MR4",
+          "from_mechanism_step_id": "M6",
+          "to_mechanism_step_id": "M2",
+          "relation_type": "missing_cancel_applies_to_deferred_work"
+        },
+        {
+          "mechanism_relation_id": "MR5",
+          "from_mechanism_step_id": "M7",
+          "to_mechanism_step_id": "M2",
+          "relation_type": "missing_flush_applies_to_pending_work"
+        },
+        {
+          "mechanism_relation_id": "MR6",
+          "from_mechanism_step_id": "M8",
+          "to_mechanism_step_id": "M3",
+          "relation_type": "missing_unregister_applies_to_callback"
+        }
+      ],
+      "risk_tags": [
+        "callback_after_free",
+        "race_condition",
+        "stale_callback",
+        "use_after_free",
+        "violated_async_cancel_invariant",
+        "violated_registration_lifetime_invariant",
+        "work_after_free"
+      ]
+    }
+  },
+  "model_projection_policy": {
+    "included_fields": [
+      "layer_0_normalized_execution_events.events[].event_type",
+      "layer_0_normalized_execution_events.relations[].relation_type",
+      "layer_2_role_based_normalized_mechanism.mechanism_family_primary",
+      "layer_2_role_based_normalized_mechanism.mechanism_family_secondary",
+      "layer_2_role_based_normalized_mechanism.mechanism_steps[].role",
+      "layer_2_role_based_normalized_mechanism.mechanism_relations[].relation_type",
+      "layer_2_role_based_normalized_mechanism.risk_tags"
+    ],
+    "excluded_fields": [
+      "CVE ID",
+      "candidate ID",
+      "file names",
+      "function names",
+      "line numbers",
+      "source artifact IDs",
+      "raw tool evidence IDs",
+      "matched source tokens",
+      "local filesystem paths"
+    ]
+  }
+}
+

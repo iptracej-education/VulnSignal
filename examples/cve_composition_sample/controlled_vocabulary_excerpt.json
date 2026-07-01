@@ -1,0 +1,90 @@
+{
+  "artifact_type": "controlled_vocabulary_excerpt",
+  "schema_version": "vulnsignal.examples.controlled_vocabulary_excerpt.v1",
+  "vocabulary_version": "lifetime_vocabulary.v0_1",
+  "layer_0": {
+    "event_types": [
+      "async_entry_observed",
+      "worker_entry_observed",
+      "work_scheduled_observed",
+      "callback_entry_observed",
+      "callback_registered_observed",
+      "object_allocated_observed",
+      "object_initialized_observed",
+      "object_published_observed",
+      "same_object_observed",
+      "shared_object_observed",
+      "object_use_observed",
+      "work_cancel_observed",
+      "work_cancel_absent",
+      "work_flush_observed",
+      "work_flush_absent",
+      "deferred_work_drain_state_open",
+      "deferred_work_drain_state_closed",
+      "callback_unregister_absent",
+      "concurrent_path_observed",
+      "interleaving_possible"
+    ],
+    "relation_types": [
+      "same_object_flow",
+      "publishes_object",
+      "uses_object",
+      "work_reaches_object_use",
+      "callback_reaches_object_use",
+      "may_interleave_with"
+    ]
+  },
+  "layer_2": {
+    "mechanism_families": [
+      "async_work_lifetime",
+      "callback_registration_lifetime",
+      "concurrency_lifetime",
+      "refcount_lifetime",
+      "rcu_lifetime",
+      "timer_lifetime",
+      "workqueue_lifetime"
+    ],
+    "mechanism_roles": [
+      "async_path",
+      "worker_path",
+      "callback_path",
+      "object_acquired",
+      "published_object",
+      "shared_lifetime_object",
+      "object_used",
+      "missing_cancel_guard",
+      "missing_flush_guard",
+      "missing_unregister_guard",
+      "concurrent_path",
+      "unsafe_interleaving",
+      "callback_after_free",
+      "stale_callback",
+      "use_after_free",
+      "work_after_free"
+    ],
+    "mechanism_relation_types": [
+      "work_reaches_object_use",
+      "callback_reaches_object_use",
+      "publishes_object",
+      "same_object_flows_to_use",
+      "missing_guard_applies_to_path",
+      "missing_cancel_applies_to_deferred_work",
+      "missing_flush_applies_to_pending_work",
+      "missing_unregister_applies_to_callback"
+    ],
+    "risk_and_invariant_tags": [
+      "callback_after_free",
+      "race_condition",
+      "stale_callback",
+      "use_after_free",
+      "violated_async_cancel_invariant",
+      "violated_registration_lifetime_invariant",
+      "work_after_free"
+    ]
+  },
+  "policy": {
+    "free_form_vocabulary_allowed": false,
+    "new_terms_require_review": true,
+    "model_visible_terms_must_come_from_controlled_vocabulary": true
+  }
+}
