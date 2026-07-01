@@ -1,122 +1,82 @@
 # VulnSignal
 
-[![Project](https://img.shields.io/badge/Project-VulnSignal%20-blue)](https://github.com/iptracej-education/VulnSignal/)
-[![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://www.python.org/)
-[![Scope](https://img.shields.io/badge/Scope-C%2FC%2B%2B%20Systems%20Code-purple)](#scope)
-[![Truth](https://img.shields.io/badge/Truth-Tool%20Grounded%20%2B%20UNKNOWN-brightgreen)](docs/project/VULNSIGNAL_CORE_WORKFLOW.md)
+VulnSignal is a research project for building tool-grounded machine learning systems that support vulnerability investigation from real code evidence, not from CVE text or label shortcuts.
 
-VulnSignal is a tool-grounded vulnerability candidate-ranking framework and a deep-learning pipeline for vulnerability research. It does not train a generic vulnerable/non-vulnerable function classifier; it ranks suspicious source-code locations inside a real investigation, predicts likely violated rules, selects supporting evidence, and reports uncertainty. It does not claim final vulnerability truth from model output alone.
+The core task is simple: given a CVE and a source-code location, decide whether that code location expresses the same vulnerability mechanism. The model may classify the location, rank it against other locations, or abstain when the evidence is not strong enough.
 
-## Scope
+The current achievement is a 300-CVE dataset for learning that task with strict evidence rules. A candidate is a source-code context being checked against one CVE mechanism.
 
-The first implementation focuses on C/C++ object lifecycle, concurrency, and memory-safety bugs, starting with Linux-style object lifetime and refcount patterns. The dataset foundation is public Linux/CVE task instances with source snapshots, patch or advisory anchors, generated candidate snippets, scalable tool-derived representations, and sparse CodeQL validation records when buildable validation is available.
+For each CVE, the dataset has one real candidate and 90 data-synthesized candidates split evenly across single-function/single-file, multi-function/single-file, and multi-function/multi-file code contexts. **Each candidate has vulnerable, fixed, and diff artifacts**, but only vulnerable and fixed artifacts receive labels and full representation families. Diff remains construction and audit evidence only.
 
-## Why This Exists
+For each CVE, we build a tool-grounded representation of the vulnerability as layered evidence:
 
-Source-code machine learning has moved from token-only models toward multi-representation learning: tokens, ASTs, CFGs, DFGs, program graphs, code property graphs, code language models, and graph neural networks all expose different signals. VulnSignal uses that direction, but it does not claim novelty from "source plus graph plus attention" alone.
+```text
+raw tool facts
+    -> L0 normalized execution/path events
+    -> L1 concrete CVE step chain for audit
+    -> L2 transferable vulnerability mechanism
+```
 
-Real vulnerability research is not a balanced function-classification task. A reviewer starts with a project snapshot, patch/advisory/checker question, crash clue, or rule family, then needs to know which file/function/line candidates deserve attention first. VulnSignal treats this as task-local candidate ranking.
+## What Are L0, L1, and L2 Representations?
 
-Tool-grounding gives the model higher-confidence suspicious-code candidates while keeping the ranking auditable. Each candidate links back to a source version, concrete location, generated representation records, and available validator evidence. CodeQL evidence is expected to be sparse in C/C++ systems code due to compilation limitations across architectures, versions, drivers, I/O, and macro/header consistency.
+- **L0** is the evidence layer. It records normalized facts extracted from code, such as object use, object release, object free, reachable cleanup paths, and whether a safety guard actually covers the path.
+- **L1** is the audit layer. It links those facts back to the concrete CVE: the source files, functions, paths, and evidence IDs that explain why the vulnerable code satisfies the mechanism.
+- **L2** is the learning layer. It removes CVE-specific names and expresses the reusable mechanism, such as refcount lifetime, async work lifetime, RCU lifetime, or missing guard composition.
 
-The biggest advantage of CodeQL is to generalize CVE/CWE mechanism into checkable rules and pattern protocols. For each CVE/task, VulnSignal will define the vulnerability mechanism, evidence targets, relevant existing CodeQL/CWE query basis, generalized custom query, validation result, and evidence strength.
+We use all three because no single layer is enough. L0 is grounded but low level, L1 is reviewable but CVE-specific, and L2 is transferable but must remain traceable back to L0 and L1 evidence.
 
-Tool-derived multiple representations strengthen inference by giving the model normalized evidence channels beyond raw source tokens. When source, lifecycle/API, AST/CFG/DFG, callback, object, and validation views agree, the ranker can assign higher confidence to suspicious candidates; when views are missing or conflicting, it should preserve uncertainty.
+Together, these layers define the CVE composition rule: the code events and relations that must appear together for the vulnerability mechanism to be present. A candidate receives a label only after its own extracted evidence is compared with that rule:
 
-LLM-assisted workflow might help read code, draft hypotheses, summarize evidence, and re-rank candidates, but an LLM-only result is not reproducible validation. VulnSignal assumes LLM output is auxiliary unless it is tied back to source anchors and our static/dynamic analysis tool-grounded records.
+```text
+1 = candidate satisfies the accepted, tool-grounded vulnerable composition
+0 = candidate fails the accepted composition
+```
+
+## Why Tool-Grounded?
+
+Security datasets are easy to contaminate with shortcuts: patch proximity, file names, generated labels, synthetic markers, or answer-like tokens. VulnSignal treats those as failures.
+
+Every admitted dataset row should link back to real or bounded source code and explicit evidence:
+
+- source file/function/line references;
+- candidate role and mechanism rationale;
+- CodeQL result when CodeQL is claimed;
+- Joern/semantic-navigation representation;
+- compile/Kbuild result when source grounding requires it;
+
+The model is not the source of truth. The model is a tool for prioritizing and explaining evidence.
+
+Internally, VulnSignal uses a shared layered standard for this work. The current standard defines L0, L1, and L2 representations from source evidence, mechanism evidence, candidate contrast, CodeQL, Joern, metadata, leakage checks, split checks, and reporting checks required to call a dataset tool-grounded.
+
+The same standard applies at candidate level: every candidate must report its complexity, source/workspace structure, and attempted tooling layers.
 
 
-## Model Inputs
+## Current Status
 
-Each dataset row is one candidate code snippet linked to one task. The model uses three input groups:
+The first implementation focuses on C/C++ object lifecycle, concurrency, and memory-safety bugs, starting with Linux-style object lifetime and refcount patterns. Here is the current snapshot data: 
 
-Primary dataset unit: `(task_instance, candidate_location)`.
+- CVEs analyzed: 300
+- Aggregate real-holdout transfer accuracy: 0.905
+- Shuffled-label p95: 0.543333
+- Real-over-shuffled margin: 0.361667
 
-| Input group | What it contains |
-| --- | --- |
-| Source code | Candidate file/function/line snippet with span markers |
-| Tool-grounded linked tables | Task rows, candidate rows, CodeQL validation rows, labels, evidence strength, and `UNKNOWN` reasons |
-| Representations | Generalized protocol/API events, AST facts, CFG/order facts, DFG/DDG/dataflow facts, graph/path facts, and optional agent-view text |
+- All code variance artifacts: 81,900 [1]
+- Match/label dataset records: 54,600 [2]
+- Full representation records: 382,200 [3]
 
-All inputs join by `task_id` and `candidate_id`. Missing rows are recorded explicitly; the pipeline does not fabricate evidence.
+[1] 300 CVEs x 91 candidates x 3 artifacts: vulnerable_code, fixed_code, diff_code. <br>
+[2] 300 CVEs x 91 candidates x 2 representation-bearing artifacts: vulnerable_code and fixed_code. <br>
+[3] 54,600 representation-bearing artifacts x 7 families: AST, CFG, DFG, DDG, CPG, callgraph, CodeQL_path. <br>
 
-## Current Dataset Status (5/28/2026) 
+## Project Structure
 
-Current phase: `E100 representation-complete; strict-eval-stable; neural v0 frozen diagnostic baseline accepted`.
+| Project | Purpose | Primary Output |
+| --- | --- | --- |
+| Classification Dataset Engineering - Completed | Build validator-passed candidate composition packages for classification learning. | Validated composition packages or rejection reports. |
+| Standard Classification Learning - Target Date: 7/31/2026 | Test whether validator-passed vulnerable/fixed candidate representations produce mechanism-separable labels without shortcut leakage. | Classification diagnostics and representation defect requests. |
+| Deep Learning System - Target Date: 8/31/2026 | Build the final transformer-based VulnSignal model. Own architecture, training recipes, optimization, validation for release, inference packaging, and new-code inference readiness. | Trained transformer checkpoints, inference pipeline, release reports, and deployment-ready artifacts. |
 
-Active dataset development is now the selected 100-CVE evidence-grounded build. Detailed generated reports and datasets remain local until a dataset release.
 
-| Data | Count | Status |
-| --- | ---: | --- |
-| CVE task instances | 100 | E100 representation-complete scope |
-| raw candidate locations | 4,422 | task-grouped real-code candidate rows |
-| normalized candidate rows | 3,904 | duplicate source windows collapsed |
-| raw candidate density | 44.22 avg / 30 min | all tasks meet the raw 30-candidate floor |
-| normalized density | 39.04 avg / 30 min | all tasks meet the normalized 30-candidate floor |
-| source-window rows | 3,305 | all tasks meet the source-visible 30-candidate floor |
-| API/protocol rows | 3,904 | model-ready generalized protocol representation |
-| CodeQL validation rows | 503 | model-ready sparse validation view |
-| Joern AST/CFG rows | 3,904 each | complete model-ready structural views |
-| Joern DDG rows | 1,056 | model-ready dataflow-support view |
-| strict ranking pairs | 1,676 | model-ready strong-evidence ranking supervision |
-| audit auxiliary pairs | 2,451 | patch-weak context pairs for low-weight auxiliary training |
-| strict-positive task split | 16 train / 10 validation / 15 test | deterministic stratified split, no label changes |
+## Documentation
 
-## Current Baseline Status (5/28/2026) 
-
-This table checks how well the linear and neural models rank candidate code locations for CVE review.
-
-| Scope | Count |
-| --- | ---: |
-| total dataset | 100 CVEs / 3,904 candidates |
-| training CVEs | 70 CVEs / 2,515 candidates |
-| validation CVEs | 10 CVEs / 407 candidates |
-| test CVEs | 20 CVEs / 982 candidates |
-| test CVEs scored in this table | 15 |
-| test CVEs not scored yet | 5 |
-
-Full static views means API/protocol plus Joern AST/CFG/DDG/callback/lifecycle views. No Joern means Joern structural rows are intentionally hidden. Validation-assisted rows include CodeQL validation features and are offline diagnostics. Neural rows are three-seed means.
-
-| Model | Mode | Strict-positive test tasks evaluated | MRR | Hit@1 | Hit@5 | Hit@10 | nDCG@10 |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| linear | source-only | 15 | 0.3109 | 0.1333 | 0.5333 | 0.5333 | 0.2701 |
-| linear | source + Joern AST/CFG | 15 | 0.5020 | 0.4000 | 0.7333 | 0.7333 | 0.4612 |
-| linear | source + full static views | 15 | 0.6848 | 0.6000 | 0.7333 | 0.8000 | 0.6196 |
-| linear | validation-assisted, no Joern | 15 | 0.9556 | 0.9333 | 1.0000 | 1.0000 | 0.9667 |
-| linear | validation-assisted + full static views | 15 | 0.9556 | 0.9333 | 1.0000 | 1.0000 | 0.9613 |
-| neural v0 | full gated | 15 | 0.9315 | 0.9111 | 0.9778 | 0.9778 | 0.9396 |
-| neural v0 | full gated, no-shortcut | 15 | 0.8691 | 0.8222 | 0.9556 | 0.9778 | 0.8949 |
-
-The linear rows are representation diagnostics; the neural rows are the frozen v0 diagnostic baseline. `full gated` uses all declared source, validation/protocol, lifecycle, static, and missing-view feature blocks with gated fusion. `full gated, no-shortcut` repeats the same model while masking patch/proximity/origin shortcut-style feature values.
-
-Details: [baseline evaluation](docs/project/VULNSIGNAL_BASELINE_EVALUATION.md).
-
-Next dataset work: E300 lifetime-family admission hardening. Current screen has 2,147 CVEs scored, 300 provisional E300 CVEs proposed, and no shortfall against the 600-CVE screening floor. The new selected E300 queue has 5 ready-now review candidates, 149 materialization/source-window candidates, and 46 patch-validation reserve candidates. Batch 001 source windows are materialized, but candidate expansion and Joern extraction are still needed. No E300 model-ready build has been created.
-
-## Tooling Policy
-
-- Joern is the primary scalable representation extractor for AST/CFG/DDG/callgraph/callback-style views.
-- Coccinelle provides Linux lifecycle/API semantic-pattern evidence.
-- SVF/LLVM, Clang tooling, and Tree-sitter may add focused views when useful.
-- CodeQL is a high-confidence validation lane for selected vulnerability rules, not the default representation extractor and not a required inference dependency.
-- CodeQL validation may run during dataset construction, offline CI validation, or optional top-k validation after ranking.
-- When CodeQL is attempted, each `(candidate_id, rule_id)` receives `rule_matched`, `rule_not_matched`, or `rule_unknown`.
-- A CodeQL rule must point to a CVE mechanism profile and evidence target. Before custom QL is written, the pipeline searches existing CodeQL C/C++ queries, CWE coverage, CodeQL libraries, and local validators.
-- Blocked CodeQL validation is recorded as `rule_unknown` with blocker provenance and substatus such as Kbuild target, Kconfig/symbol, header/dependency, toolchain, or unsupported-source failure.
-- `rule_unknown` trains confidence/abstention and repair prioritization; it is not positive or negative evidence.
-- Grep-only matching, invented protocol traces, and unanchored LLM summaries are not tool-grounded data.
-
-Canonical CodeQL validators are internal working artifacts until they are promoted into the public repository snapshot.
-
-## Key Documents
-
-- [README.md](README.md)
-- [PROPOSAL.md](PROPOSAL.md)
-- [Document Index](DOCUMENT_INDEX.md)
-- [Core workflow](docs/project/VULNSIGNAL_CORE_WORKFLOW.md)
-- [Evidence policy](docs/project/VULNSIGNAL_EVIDENCE_POLICY.md)
-- [Baseline evaluation](docs/project/VULNSIGNAL_BASELINE_EVALUATION.md)
-
-## Alignment Gate
-
-The internal alignment gate should block vague ML vulnerability-detection framing, stale project naming, ambiguous diagram language, and claims that model output alone establishes vulnerability truth. The gate script is not part of the current three-file public snapshot.
+Detailed documentation is being reorganized for release.
