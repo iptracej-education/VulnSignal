@@ -1,5 +1,13 @@
 # VulnSignal
 
+[![Project](https://img.shields.io/badge/Project-VulnSignal%20-blue)](https://github.com/iptracej-education/VulnSignal/)
+[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://www.python.org/)
+[![Scope](https://img.shields.io/badge/Scope-C%2FC%2B%2B%20Systems%20Code-purple)](#vulnerability-family-scope)
+[![Truth](https://img.shields.io/badge/Truth-Tool%2FOracle%20Grounded-brightgreen)](#truth-boundary)
+[![Scope](https://img.shields.io/badge/Scope-C%2FC%2B%2B%20Systems%20Code-purple)](#scope)
+[![Truth](https://img.shields.io/badge/Truth-CodeQL%2FTool%20Grounded-brightgreen)](#core-workflow)
+
 VulnSignal is a research project for building tool-grounded machine learning systems that support vulnerability investigation from real code evidence, not from CVE text or label shortcuts.
 
 The core task is simple: given a CVE and a source-code location, decide whether that code location expresses the same vulnerability mechanism. The model may classify the location, rank it against other locations, or abstain when the evidence is not strong enough.
