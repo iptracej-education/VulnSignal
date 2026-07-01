@@ -12,9 +12,9 @@ VulnSignal is a research project for building tool-grounded machine learning sys
 
 The core task is simple: given a CVE and a source-code location, decide whether that code location expresses the same vulnerability mechanism. The model may classify the location, rank it against other locations, or abstain when the evidence is not strong enough.
 
-The current achievement is a 300-CVE dataset for learning that task with strict evidence rules. A candidate is a source-code context being checked against one CVE mechanism.
+The current achievement is a 300-CVE dataset for learning that task with strict evidence rules. 
 
-For each CVE, the dataset has one real candidate and 90 data-synthesized candidates split evenly across single-function/single-file, multi-function/single-file, and multi-function/multi-file code contexts. **Each candidate has vulnerable, fixed, and diff artifacts**, but only vulnerable and fixed artifacts receive labels and full representation families. Diff remains construction and audit evidence only.
+For each CVE, the dataset has one real candidate and 90 data-synthesized candidates split evenly across single-function/single-file, multi-function/single-file, and multi-function/multi-file code contexts. A candidate is a source-code context being checked against one CVE mechanism. **Each candidate has vulnerable, fixed, and diff artifacts**, but only vulnerable and fixed artifacts receive labels and full representation families. Diff remains construction and audit evidence only.
 
 For each CVE, we build a tool-grounded representation of the vulnerability as layered evidence:
 
